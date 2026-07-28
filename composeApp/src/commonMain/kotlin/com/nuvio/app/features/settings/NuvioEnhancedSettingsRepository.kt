@@ -28,6 +28,7 @@ internal data class NuvioEnhancedSettingsUiState(
     val compactHeroMetadata: Boolean = true,
     val showHeroRatings: Boolean = true,
     val showHeroOverview: Boolean = false,
+    val showHeroDetailsButton: Boolean = true,
     val heroRefreshHapticsEnabled: Boolean = true,
     val smartShelvesEnabled: Boolean = false,
     val releaseRadarDigestEnabled: Boolean = false,
@@ -120,6 +121,7 @@ private data class StoredNuvioEnhancedSettings(
     val compactHeroMetadata: Boolean = true,
     val showHeroRatings: Boolean = true,
     val showHeroOverview: Boolean = false,
+    val showHeroDetailsButton: Boolean = true,
     val heroOverviewUserConfigured: Boolean = false,
     val heroRefreshHapticsEnabled: Boolean = true,
     val smartShelvesEnabled: Boolean = false,
@@ -269,6 +271,10 @@ internal object NuvioEnhancedSettingsRepository {
         )
     }
 
+    fun setShowHeroDetailsButton(enabled: Boolean) = update {
+        copy(showHeroDetailsButton = enabled)
+    }
+
     fun setHeroRefreshHapticsEnabled(enabled: Boolean) = update {
         copy(heroRefreshHapticsEnabled = enabled)
     }
@@ -368,6 +374,7 @@ internal object NuvioEnhancedSettingsRepository {
             compactHeroMetadata = stored.compactHeroMetadata,
             showHeroRatings = stored.showHeroRatings,
             showHeroOverview = stored.showHeroOverview,
+            showHeroDetailsButton = stored.showHeroDetailsButton,
             heroRefreshHapticsEnabled = stored.heroRefreshHapticsEnabled,
             smartShelvesEnabled = stored.smartShelvesEnabled,
             releaseRadarDigestEnabled = stored.releaseRadarDigestEnabled,

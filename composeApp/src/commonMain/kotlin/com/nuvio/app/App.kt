@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
@@ -829,6 +830,7 @@ private fun MainAppContent(
         val liquidGlassNativeTabBarSupported = remember { isLiquidGlassNativeTabBarSupported() }
         var showExitConfirmation by rememberSaveable { mutableStateOf(false) }
         var selectedPosterActionTarget by remember { mutableStateOf<PosterActionTarget?>(null) }
+        var showPosterTrackerSheet by remember { mutableStateOf<PosterActionTarget?>(null) }
         var selectedPosterAnchor by remember { mutableStateOf<PosterZoomAnchor?>(null) }
         val posterOverlayHazeState = rememberHazeState()
         var selectedContinueWatchingForActions by remember { mutableStateOf<ContinueWatchingItem?>(null) }
@@ -3588,10 +3590,19 @@ private fun MainAppContent(
                                 } else {
                                     stringResource(Res.string.hero_mark_watched)
                                 },
-                                onSelected = {
+                                 onSelected = {
                                     coroutineScope.launch {
                                         WatchingActions.togglePosterWatched(preview)
                                     }
+                                },
+                            ),
+                            PosterZoomOverlayAction(
+                                icon = Icons.Default.Edit,
+                                label = "Tracking",
+                                onSelected = {
+                                    showPosterTrackerSheet = posterActionTarget
+                                    selectedPosterActionTarget = null
+                                    selectedPosterAnchor = null
                                 },
                             ),
                         ),
@@ -3669,6 +3680,17 @@ private fun MainAppContent(
                     }
                 }
             }
+
+            // EaZy Nuvio+ Start
+            if (showPosterTrackerSheet != null) {
+                com.nuvio.app.features.anilist.AnimeTrackerSheet(
+                    contentId = showPosterTrackerSheet!!.preview.id,
+                    videoId = null,
+                    title = showPosterTrackerSheet!!.preview.name,
+                    onDismiss = { showPosterTrackerSheet = null },
+                )
+            }
+            // EaZy Nuvio+ End
 
             NuvioContinueWatchingActionSheet(
                 item = selectedContinueWatchingForActions.takeIf { selectedContinueWatchingZoomAnchor == null },

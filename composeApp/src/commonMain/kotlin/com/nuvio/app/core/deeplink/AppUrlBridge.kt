@@ -44,6 +44,10 @@ fun handleAppUrl(url: String) {
 
     ensureTrackingProvidersRegistered()
     TrackingProviderRegistry.handleAuthCallback(normalizedUrl)
+    // EaZy Nuvio+ Start
+    com.nuvio.app.features.anilist.AniListAuthRepository.onAuthCallbackReceived(normalizedUrl)
+    com.nuvio.app.features.mal.MalAuthRepository.onAuthCallbackReceived(normalizedUrl)
+    // EaZy Nuvio+ End
     AppDeepLinkRepository.handleUrl(normalizedUrl)
 }
 

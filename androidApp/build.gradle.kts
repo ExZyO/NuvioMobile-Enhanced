@@ -75,7 +75,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.nuvio.enhanced"
+        applicationId = "com.nuvio.enhancedplus"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = releaseAppVersionCode

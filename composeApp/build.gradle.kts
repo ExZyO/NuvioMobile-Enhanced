@@ -151,13 +151,45 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 |package com.nuvio.app.features.simkl
                 |
                 |object SimklConfig {
+                |    // EaZy Nuvio+ Start
                 |    const val CLIENT_ID = "${simklClientId.get()}"
                 |    const val REDIRECT_URI = "${simklRedirectUri.get()}"
                 |    const val APP_NAME = "${simklAppName.get()}"
+                |    // EaZy Nuvio+ End
                 |}
                 """.trimMargin()
             )
         }
+
+        // EaZy Nuvio+ Start
+        outDir.resolve("com/nuvio/app/features/anilist").apply {
+            mkdirs()
+            resolve("AniListConfig.kt").writeText(
+                """
+                |package com.nuvio.app.features.anilist
+                |
+                |object AniListConfig {
+                |    val CLIENT_ID = "${props.getProperty("ANILIST_CLIENT_ID", "46026")}" 
+                |    val REDIRECT_URI = "${props.getProperty("ANILIST_REDIRECT_URI", "nuvioenhanced://auth/anilist")}"
+                |}
+                """.trimMargin()
+            )
+        }
+
+        outDir.resolve("com/nuvio/app/features/mal").apply {
+            mkdirs()
+            resolve("MalConfig.kt").writeText(
+                """
+                |package com.nuvio.app.features.mal
+                |
+                |object MalConfig {
+                |    val CLIENT_ID = "${props.getProperty("MAL_CLIENT_ID", "043566b44e1077e78676bcc7acc098d8")}" 
+                |    val REDIRECT_URI = "${props.getProperty("MAL_REDIRECT_URI", "nuvioenhanced://auth/mal")}"
+                |}
+                """.trimMargin()
+            )
+        }
+        // EaZy Nuvio+ End
 
         outDir.resolve("com/nuvio/app/features/updater").apply {
             mkdirs()

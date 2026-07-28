@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Button
@@ -235,6 +236,7 @@ fun MetaDetailsScreen(
     var episodeImdbRatings by remember(type, id) { mutableStateOf<Map<Pair<Int, Int>, Double>>(emptyMap()) }
     var deferredMetaWorkAllowed by remember(type, id) { mutableStateOf(false) }
     var showAiAssistant by remember(type, id) { mutableStateOf(false) }
+    var showAnimeTrackerSheet by remember(type, id) { mutableStateOf(false) }
 
     val shouldShowComments = !offlineDetailsAvailable &&
         commentsEnabled &&
@@ -1195,6 +1197,7 @@ fun MetaDetailsScreen(
                                 onOpenMeta = onOpenMeta,
                                 onCastClick = onCastClick,
                                 onCompanyClick = onCompanyClick,
+                                onTrackerClick = { showAnimeTrackerSheet = true },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope,
                             )
@@ -1516,6 +1519,15 @@ fun MetaDetailsScreen(
             }
         }
 
+        if (showAnimeTrackerSheet) {
+            com.nuvio.app.features.anilist.AnimeTrackerSheet(
+                contentId = id,
+                videoId = null,
+                title = displayedMeta?.name ?: "",
+                onDismiss = { showAnimeTrackerSheet = false },
+            )
+        }
+
         if (displayedMeta == null) {
             NuvioBackButton(
                 onClick = onBack,
@@ -1657,6 +1669,7 @@ private fun LazyListScope.configuredMetaSectionItems(
     onOpenMeta: ((MetaPreview) -> Unit)?,
     onCastClick: ((MetaPerson, String?) -> Unit)?,
     onCompanyClick: ((MetaCompany, String) -> Unit)?,
+    onTrackerClick: () -> Unit = {},
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?,
 ) {
@@ -1701,6 +1714,7 @@ private fun LazyListScope.configuredMetaSectionItems(
                         tabLayout = forceTabLayout,
                     ),
                     meta = meta,
+                    onTrackerClick = onTrackerClick,
                     isTablet = isTablet,
                     playButtonLabel = playButtonLabel,
                     isSaved = isSaved,
@@ -1850,6 +1864,7 @@ private fun metaSectionHasContent(
 @OptIn(ExperimentalSharedTransitionApi::class)
 private fun ConfiguredMetaSections(
     settings: MetaScreenSettingsUiState,
+    onTrackerClick: () -> Unit = {},
     meta: MetaDetails,
     isTablet: Boolean,
     playButtonLabel: String,
@@ -1917,9 +1932,20 @@ private fun ConfiguredMetaSections(
     fun RenderSection(key: MetaScreenSectionKey, showHeader: Boolean = true) {
         when (key) {
             MetaScreenSectionKey.ACTIONS -> {
+                val isAnime = meta.genres.any { it.equals("anime", ignoreCase = true) } || meta.genres.any { it.contains("animation", ignoreCase = true) }
+                val actualFeaturedAction = if (isAnime) {
+                    DetailSecondaryAction(
+                        label = "Tracker",
+                        icon = Icons.Default.Edit,
+                        isActive = false,
+                        onClick = onTrackerClick,
+                    )
+                } else {
+                    featuredAction
+                }
                 DetailActionButtons(
                     playLabel = playButtonLabel,
-                    featuredAction = featuredAction,
+                    featuredAction = actualFeaturedAction,
                     secondaryActions = listOf(
                         DetailSecondaryAction(
                             label = if (isWatched) {

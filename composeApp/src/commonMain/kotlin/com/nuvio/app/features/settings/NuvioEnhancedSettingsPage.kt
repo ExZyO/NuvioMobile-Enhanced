@@ -129,6 +129,14 @@ private fun NuvioEnhancedSettingsPageContent(
         PlayerSettingsRepository.ensureLoaded()
         PlayerSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
+    val aniListState by remember {
+        com.nuvio.app.features.anilist.AniListAuthRepository.ensureLoaded()
+        com.nuvio.app.features.anilist.AniListAuthRepository.uiState
+    }.collectAsStateWithLifecycle()
+    val malState by remember {
+        com.nuvio.app.features.mal.MalAuthRepository.ensureLoaded()
+        com.nuvio.app.features.mal.MalAuthRepository.uiState
+    }.collectAsStateWithLifecycle()
     val lastCrashReport by remember {
         CrashDiagnostics.lastReport
     }.collectAsStateWithLifecycle()
@@ -279,6 +287,16 @@ private fun NuvioEnhancedSettingsPageContent(
                         NuvioEnhancedSettingsRepository.setProfileStatsEnabled(it)
                     },
                 )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = "Show 'View Details' Button",
+                    description = "Display the 'View Details' button on the hero banner.",
+                    checked = settings.showHeroDetailsButton,
+                    isTablet = isTablet,
+                    onCheckedChange = {
+                        NuvioEnhancedSettingsRepository.setShowHeroDetailsButton(it)
+                    },
+                )
             }
         }
 
@@ -393,6 +411,27 @@ private fun NuvioEnhancedSettingsPageContent(
                         NuvioEnhancedSettingsRepository.setShowContinueWatchingReadyBadge(it)
                     },
                 )
+            }
+        }
+
+        if (selectedCategory == EnhancedSettingsCategory.Core ||
+            selectedCategory == EnhancedSettingsCategory.All
+        ) {
+            SettingsSection(
+                title = "Anime Tracking & Sync",
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    com.nuvio.app.features.anilist.AniListConnectionCard(
+                        isTablet = isTablet,
+                        uiState = aniListState,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    com.nuvio.app.features.mal.MalConnectionCard(
+                        isTablet = isTablet,
+                        uiState = malState,
+                    )
+                }
             }
         }
         }

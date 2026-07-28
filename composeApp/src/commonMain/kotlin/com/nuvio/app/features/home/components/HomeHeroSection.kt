@@ -52,6 +52,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -110,6 +111,7 @@ import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_TMDB
 import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_TOMATOES
 import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_TRAKT
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
+import com.nuvio.app.features.settings.NuvioEnhancedSettingsRepository
 import com.nuvio.app.features.settings.NuvioHeroArtworkSource
 import com.nuvio.app.features.settings.NuvioHeroDisplayMode
 import com.nuvio.app.features.tmdb.TmdbMetadataService
@@ -206,6 +208,9 @@ internal fun HomeHeroSection(
     val pagerState = rememberPagerState(pageCount = { items.size })
     val coroutineScope = rememberCoroutineScope()
     var isUserInteracting by remember { mutableStateOf(false) }
+    val nuvioEnhancedSettings by NuvioEnhancedSettingsRepository.uiState.collectAsState()
+    val showHeroDetailsButton = nuvioEnhancedSettings.showHeroDetailsButton
+
     val itemKeys = remember(items) { items.joinToString(separator = "|") { it.stableKey() } }
     val detailMetas = remember(itemKeys, metadataRefreshKey) { mutableStateMapOf<String, MetaDetails>() }
     val detailLoadCompleted = remember(itemKeys, metadataRefreshKey) { mutableStateMapOf<String, Boolean>() }
@@ -588,7 +593,7 @@ internal fun HomeHeroSection(
                                 }
                             }
 
-                            if (!layout.isTablet) {
+                            if (showHeroDetailsButton && !layout.isTablet) {
                                 Spacer(modifier = Modifier.height(14.dp))
                                 HeroCtaButton(
                                     text = stringResource(Res.string.home_view_details),
@@ -1608,22 +1613,27 @@ private fun StreamingShowcaseNetflixActionRow(
     onDetailsClick: () -> Unit,
     onSaveClick: () -> Unit,
 ) {
+    val nuvioEnhancedSettings by NuvioEnhancedSettingsRepository.uiState.collectAsState()
+    val showDetailsButton = nuvioEnhancedSettings.showHeroDetailsButton
+
     Row(
         modifier = Modifier
-            .fillMaxWidth(if (compact) 0.78f else 0.82f)
-            .widthIn(max = if (compact) 346.dp else 420.dp),
-        horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 12.dp),
+            .fillMaxWidth(if (showDetailsButton) (if (compact) 0.78f else 0.82f) else (if (compact) 0.55f else 0.6f))
+            .widthIn(max = if (showDetailsButton) (if (compact) 346.dp else 420.dp) else (if (compact) 240.dp else 280.dp)),
+        horizontalArrangement = if (showDetailsButton) Arrangement.spacedBy(if (compact) 10.dp else 12.dp) else Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        StreamingShowcaseNetflixButton(
-            text = stringResource(Res.string.home_view_details),
-            imageVector = Icons.Rounded.Info,
-            primary = true,
-            enabled = detailsEnabled,
-            compact = compact,
-            modifier = Modifier.weight(1f),
-            onClick = onDetailsClick,
-        )
+        if (showDetailsButton) {
+            StreamingShowcaseNetflixButton(
+                text = stringResource(Res.string.home_view_details),
+                imageVector = Icons.Rounded.Info,
+                primary = true,
+                enabled = detailsEnabled,
+                compact = compact,
+                modifier = Modifier.weight(1f),
+                onClick = onDetailsClick,
+            )
+        }
         StreamingShowcaseNetflixButton(
             text = stringResource(Res.string.home_hero_my_list),
             imageVector = if (isSaved) Icons.Rounded.Bookmark else Icons.Rounded.Add,

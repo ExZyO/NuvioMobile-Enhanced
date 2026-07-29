@@ -31,10 +31,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.nuvio.app.features.settings.NuvioEnhancedSettingsRepository
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -104,10 +106,31 @@ fun DetailMetaInfo(
         val hasMdbImdbRating = meta.externalRatings.any { it.source == PROVIDER_IMDB }
         val validImdbRating = meta.imdbRating
             ?.takeIf { raw -> raw.toDoubleOrNull()?.let { it > 0.0 } == true }
+        val nuvioEnhancedSettings by NuvioEnhancedSettingsRepository.uiState.collectAsState()
+        val upcomingAirBadgeText = remember(meta.videos, nuvioEnhancedSettings.showEpisodeAirCountdown) {
+            if (!nuvioEnhancedSettings.showEpisodeAirCountdown) return@remember null
+            val todayIso = com.nuvio.app.features.watchprogress.CurrentDateProvider.todayIsoDate()
+            val upcomingDaysList: List<Int> = meta.videos
+                .mapNotNull { video ->
+                    val releaseIso = video.released?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                    val days = com.nuvio.app.core.time.daysUntilEpisodeRelease(todayIsoDate = todayIso, releasedDate = releaseIso) ?: return@mapNotNull null
+                    if (days >= 0) days else null
+                }
+            val upcomingDays = upcomingDaysList.minOrNull()
+
+            when (upcomingDays) {
+                0 -> "Airs Today"
+                1 -> "Airs Tomorrow"
+                in 2..7 -> "Airs in ${upcomingDays}d"
+                in 8..30 -> "Airs in ${upcomingDays} days"
+                else -> null
+            }
+        }
         val hasMetaRow = releaseLine != null ||
             runtimeText != null ||
             seriesCountText != null ||
             ageBadge != null ||
+            upcomingAirBadgeText != null ||
             (validImdbRating != null && !hasMdbImdbRating)
         if (hasMetaRow) {
             FlowRow(
@@ -142,6 +165,24 @@ fun DetailMetaInfo(
                 }
                 ageBadge?.let { badge ->
                     DetailHeroMetaBadge(text = badge)
+                }
+                upcomingAirBadgeText?.let { timingText ->
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(6.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                    ) {
+                        Text(
+                            text = timingText,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                            ),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
                 if (validImdbRating != null && !hasMdbImdbRating) {
                     val imdbTextStyle = MaterialTheme.typography.titleMedium.copy(

@@ -573,6 +573,76 @@ internal fun settingsSearchEntries(
             icon = Icons.Rounded.PlayArrow,
         )
     }
+    addRow(
+        page = SettingsPage.NuvioEnhanced,
+        key = "show-hero-details",
+        title = "Show 'View Details' Button",
+        description = "Display the 'View Details' button on the hero banner.",
+        pageLabel = nuvioEnhancedPage,
+        section = "Plus",
+        category = enhancedCategory,
+        icon = Icons.Rounded.AutoAwesome,
+    )
+    addRow(
+        page = SettingsPage.NuvioEnhanced,
+        key = "show-hero-ratings",
+        title = "Show Hero Ratings",
+        description = "Display rating badges (IMDb, TMDB, Rotten Tomatoes, Metacritic, Trakt, Letterboxd, Audience Score, MyAnimeList) on the hero banner.",
+        pageLabel = nuvioEnhancedPage,
+        section = "Plus",
+        category = enhancedCategory,
+        icon = Icons.Rounded.AutoAwesome,
+    )
+    addRow(
+        page = SettingsPage.NuvioEnhanced,
+        key = "original-nuvio-hero",
+        title = "Original Nuvio Hero Banner",
+        description = "Revert the hero banner to original Nuvio style with centered text metadata.",
+        pageLabel = nuvioEnhancedPage,
+        section = "Plus",
+        category = enhancedCategory,
+        icon = Icons.Rounded.AutoAwesome,
+    )
+    addRow(
+        page = SettingsPage.NuvioEnhanced,
+        key = "anime-tracking-sync",
+        title = "AniList & MyAnimeList Tracking & Sync",
+        description = "Connect AniList and MyAnimeList accounts for automatic anime watch tracking and scrobbling.",
+        pageLabel = nuvioEnhancedPage,
+        section = "Plus",
+        category = enhancedCategory,
+        icon = Icons.Rounded.AutoAwesome,
+    )
+    addRow(
+        page = SettingsPage.NuvioEnhanced,
+        key = "pinned-stream-sources",
+        title = "Pinned stream sources",
+        description = "Pin your favorite video stream sources to the top.",
+        pageLabel = nuvioEnhancedPage,
+        section = "Plus",
+        category = enhancedCategory,
+        icon = Icons.Rounded.Tune,
+    )
+    addRow(
+        page = SettingsPage.NuvioEnhanced,
+        key = "force-anime-tracking-all",
+        title = "Enable Tracking for All Content",
+        description = "Display the Anime Tracking button (AniList & MyAnimeList) for all movies and shows, even if anime metadata is not detected.",
+        pageLabel = nuvioEnhancedPage,
+        section = "Plus",
+        category = enhancedCategory,
+        icon = Icons.Rounded.AutoAwesome,
+    )
+    addRow(
+        page = SettingsPage.NuvioEnhanced,
+        key = "show-episode-air-countdown",
+        title = "Show Episode Air Countdown",
+        description = "Display a countdown badge in details panel showing time remaining until upcoming episodes air (e.g. Airs Today, Airs in 5d).",
+        pageLabel = nuvioEnhancedPage,
+        section = "Plus",
+        category = enhancedCategory,
+        icon = Icons.Rounded.AutoAwesome,
+    )
     addPage(
         page = SettingsPage.ContinueWatching,
         key = "continue-watching",

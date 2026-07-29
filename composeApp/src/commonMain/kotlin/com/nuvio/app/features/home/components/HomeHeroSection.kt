@@ -8,6 +8,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -110,6 +111,7 @@ import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_METACRITIC
 import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_TMDB
 import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_TOMATOES
 import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_TRAKT
+import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_MAL
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
 import com.nuvio.app.features.settings.NuvioEnhancedSettingsRepository
 import com.nuvio.app.features.settings.NuvioHeroArtworkSource
@@ -785,6 +787,8 @@ private fun StreamingShowcaseHeroPage(
     val releaseLabel = (detailMeta?.releaseInfo?.takeIf { it.isNotBlank() } ?: item.releaseInfo)
         ?.let(::heroReleaseYearLabel)
     val fallbackImdbRating = (detailMeta?.imdbRating?.takeIf { it.isNotBlank() } ?: item.imdbRating)
+        ?.substringBefore("/")
+        ?.trim()
         ?.toDoubleOrNull()
         ?.takeIf { it > 0.0 }
     val overview = detailMeta?.description
@@ -801,7 +805,7 @@ private fun StreamingShowcaseHeroPage(
             buildStreamingShowcaseRatings(
                 externalRatings = detailMeta?.externalRatings.orEmpty(),
                 fallbackImdbRating = fallbackImdbRating,
-                maxItems = 6,
+                maxItems = 8,
             )
         } else {
             emptyList()
@@ -1521,6 +1525,14 @@ private val streamingShowcaseRatingVisuals = listOf(
         logoWidth = 15.dp,
         valueColor = Color(0xFFED1C24),
         format = ::formatShowcaseWhole,
+    ),
+    StreamingShowcaseRatingVisuals(
+        source = PROVIDER_MAL,
+        displayName = "MyAnimeList",
+        logo = Res.drawable.rating_mal,
+        logoWidth = 15.dp,
+        valueColor = Color(0xFF2E51A2),
+        format = ::formatShowcaseOneDecimal,
     ),
 )
 
@@ -2295,17 +2307,16 @@ private fun HeroContentBlock(
     val fallbackGenres = item.genres
         .map(String::trim)
         .filter(String::isNotBlank)
-    val maxGenres = when {
-        heroDisplayMode == NuvioHeroDisplayMode.Cinematic -> 1
-        compactMetadata -> 1
-        else -> 2
+    val maxGenres = when (heroDisplayMode) {
+        NuvioHeroDisplayMode.Cinematic -> if (compactMetadata) 1 else 2
+        NuvioHeroDisplayMode.Balanced -> if (compactMetadata) 2 else 3
+        NuvioHeroDisplayMode.InfoRich -> if (compactMetadata) 3 else 4
     }
     val displayGenres = detailGenres.ifEmpty { fallbackGenres }.take(maxGenres)
     val displayRelease = detailMeta?.releaseInfo?.takeIf { it.isNotBlank() } ?: item.releaseInfo
     val seasonCountLabel = heroSeasonCountLabel(detailMeta)
     val displayImdb = if (showRatings) {
-        (detailMeta?.imdbRating?.takeIf { it.isNotBlank() } ?: item.imdbRating)
-            ?.takeIf { raw -> raw.toDoubleOrNull()?.let { it > 0.0 } == true }
+        formatHeroImdbRating(detailMeta?.imdbRating?.takeIf { it.isNotBlank() } ?: item.imdbRating)
     } else {
         null
     }
@@ -2315,9 +2326,9 @@ private fun HeroContentBlock(
         ?: item.description?.trim()?.takeIf { it.isNotBlank() }
     val displayTypeLabel = heroTypeLabel(displayType)
     val metaLimit = when (heroDisplayMode) {
-        NuvioHeroDisplayMode.Cinematic -> 3
-        NuvioHeroDisplayMode.Balanced -> if (compactMetadata) 4 else 5
-        NuvioHeroDisplayMode.InfoRich -> 5
+        NuvioHeroDisplayMode.Cinematic -> if (compactMetadata) 2 else 3
+        NuvioHeroDisplayMode.Balanced -> if (compactMetadata) 3 else 5
+        NuvioHeroDisplayMode.InfoRich -> if (compactMetadata) 4 else 7
     }
     val heroMetaItems = buildList {
         add(HeroMetaItem(text = displayTypeLabel, emphasized = true))
@@ -2330,8 +2341,10 @@ private fun HeroContentBlock(
         seasonCountLabel?.let { count ->
             add(HeroMetaItem(text = count))
         }
-        displayImdb?.takeIf { it.isNotBlank() }?.let { rating ->
-            add(HeroMetaItem(text = "IMDb $rating"))
+        if (!showRatings) {
+            displayImdb?.takeIf { it.isNotBlank() }?.let { rating ->
+                add(HeroMetaItem(text = "IMDb $rating"))
+            }
         }
     }.take(metaLimit)
     val logoHeight = when (heroDisplayMode) {
@@ -2406,13 +2419,84 @@ private fun HeroContentBlock(
             }
         }
 
+        val nuvioEnhancedSettings by NuvioEnhancedSettingsRepository.uiState.collectAsState()
+        val isOriginalNuvioHero = nuvioEnhancedSettings.originalNuvioHeroBannerEnabled
+
+        val showcaseRatings = if (showRatings) {
+            val fallbackImdbRating = (detailMeta?.imdbRating?.takeIf { it.isNotBlank() } ?: item.imdbRating)
+                ?.replace("IMDb", "", ignoreCase = true)
+                ?.substringBefore("/")
+                ?.trim()
+                ?.toDoubleOrNull()
+                ?.takeIf { it > 0.0 }
+            buildStreamingShowcaseRatings(
+                externalRatings = detailMeta?.externalRatings.orEmpty(),
+                fallbackImdbRating = fallbackImdbRating,
+                maxItems = if (layout.isTablet) 8 else 6,
+            )
+        } else {
+            emptyList()
+        }
+
         Spacer(modifier = Modifier.height(10.dp))
-        HeroMetaGlassRail(
-            items = heroMetaItems,
-            layout = layout,
-            heroDisplayMode = heroDisplayMode,
-            compact = compactMetadata,
-        )
+        if (isOriginalNuvioHero) {
+            val subtitleText = heroMetaItems.joinToString(" • ") { it.text }
+            if (subtitleText.isNotBlank()) {
+                Text(
+                    text = subtitleText,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White.copy(alpha = 0.88f),
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        } else {
+            HeroMetaGlassRail(
+                items = heroMetaItems,
+                layout = layout,
+                heroDisplayMode = heroDisplayMode,
+                compact = compactMetadata,
+            )
+        }
+
+        if (showcaseRatings.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            FlowRow(
+                horizontalArrangement = if (layout.isTablet && !isOriginalNuvioHero) Arrangement.Start else Arrangement.Center,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                showcaseRatings.forEach { rating ->
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.45f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, rating.valueColor.copy(alpha = 0.35f)),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            Image(
+                                painter = painterResource(rating.logo),
+                                contentDescription = rating.displayName,
+                                modifier = Modifier
+                                    .height(14.dp)
+                                    .widthIn(max = rating.logoWidth),
+                                contentScale = ContentScale.Fit,
+                            )
+                            Text(
+                                text = rating.text,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = rating.valueColor,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
         if (showOverview) displaySummary?.let { summary ->
             Spacer(modifier = Modifier.height(if (compactMetadata || heroDisplayMode == NuvioHeroDisplayMode.Cinematic) 9.dp else 12.dp))
@@ -2844,6 +2928,7 @@ private fun posterHeroRatings(
     val fallbackImdb = detailMeta?.imdbRating?.takeIf { it.isNotBlank() } ?: item.imdbRating
     val imdbValue = imdbExternal?.value?.let { posterHeroRatingValue("imdb", it) }
         ?: fallbackImdb
+            ?.substringBefore("/")
             ?.trim()
             ?.takeIf { raw -> raw.toDoubleOrNull()?.let { it > 0.0 } == true }
             ?.let(::posterHeroImdbText)
@@ -2919,6 +3004,21 @@ private fun posterHeroRatingValue(source: String, value: Double): String =
 
 private fun posterHeroImdbText(raw: String): String =
     if (raw.contains("/")) raw else "$raw/10"
+
+private fun formatHeroImdbRating(raw: String?): String? {
+    if (raw.isNullOrBlank()) return null
+    val cleaned = raw.replace("IMDb", "", ignoreCase = true)
+        .substringBefore("/")
+        .trim()
+    val numeric = cleaned.toDoubleOrNull() ?: return null
+    if (numeric <= 0.0) return null
+    val rounded = (numeric * 10.0).roundToInt() / 10.0
+    return if (rounded % 1.0 == 0.0) {
+        rounded.toInt().toString()
+    } else {
+        rounded.toString()
+    }
+}
 
 private fun posterHeroOneDecimal(value: Double): String {
     val rounded = (value * 10.0).roundToInt()

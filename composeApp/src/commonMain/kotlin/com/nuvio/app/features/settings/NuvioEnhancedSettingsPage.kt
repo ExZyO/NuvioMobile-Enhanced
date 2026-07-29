@@ -29,6 +29,8 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Restore
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -47,6 +49,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -91,6 +94,7 @@ private const val NuvioEnhancedDiscordUrl = "https://discord.gg/at8xffxuRU"
 private enum class EnhancedSettingsCategory {
     New,
     All,
+    Plus,
     Core,
     Home,
     Player,
@@ -150,14 +154,8 @@ private fun NuvioEnhancedSettingsPageContent(
         settings.isNew(NuvioEnhancedFeature.SubtitleSelectorStyle) ||
         settings.isNew(NuvioEnhancedFeature.PlayerTimeOverlay) ||
         settings.isNew(NuvioEnhancedFeature.PersistentEpisodeShuffle)
-    var selectedCategory by rememberSaveable {
-        mutableStateOf(
-            if (hasNewPlayerTools) {
-                EnhancedSettingsCategory.New
-            } else {
-                EnhancedSettingsCategory.Core
-            },
-        )
+    var selectedCategory by remember {
+        mutableStateOf(EnhancedSettingsCategory.All)
     }
     val backupImportedMessage = stringResource(Res.string.nuvio_enhanced_toast_backup_imported)
     val invalidBackupPayloadMessage = stringResource(Res.string.nuvio_enhanced_toast_invalid_backup)
@@ -216,207 +214,259 @@ private fun NuvioEnhancedSettingsPageContent(
             onSelected = { selectedCategory = it },
         )
 
+        if (selectedCategory == EnhancedSettingsCategory.Plus) {
+            SettingsSection(
+                title = "Plus Features",
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsSwitchRow(
+                        title = "Show 'View Details' Button",
+                        description = "Display the 'View Details' button on the hero banner.",
+                        checked = settings.showHeroDetailsButton,
+                        isTablet = isTablet,
+                        onCheckedChange = {
+                            NuvioEnhancedSettingsRepository.setShowHeroDetailsButton(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = "Original Nuvio Hero Banner",
+                        description = "Revert the hero banner to original Nuvio style with centered text metadata.",
+                        checked = settings.originalNuvioHeroBannerEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = {
+                            NuvioEnhancedSettingsRepository.setOriginalNuvioHeroBannerEnabled(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = "Show Hero Ratings",
+                        description = "Display rating badges (IMDb, TMDB, Rotten Tomatoes, Metacritic, Trakt, Letterboxd, Audience Score, MyAnimeList) on the hero banner.",
+                        checked = settings.showHeroRatings,
+                        isTablet = isTablet,
+                        onCheckedChange = {
+                            NuvioEnhancedSettingsRepository.setShowHeroRatings(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = "Enable Tracking for All Content",
+                        description = "Display the Anime Tracking button (AniList & MyAnimeList) for all movies and shows, even if anime metadata is not detected.",
+                        checked = settings.forceAnimeTrackingForAllContent,
+                        isTablet = isTablet,
+                        onCheckedChange = {
+                            NuvioEnhancedSettingsRepository.setForceAnimeTrackingForAllContent(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = "Show Episode Air Countdown",
+                        description = "Display a countdown badge in details panel showing time remaining until upcoming episodes air (e.g. Airs Today, Airs in 5d).",
+                        checked = settings.showEpisodeAirCountdown,
+                        isTablet = isTablet,
+                        onCheckedChange = {
+                            NuvioEnhancedSettingsRepository.setShowEpisodeAirCountdown(it)
+                        },
+                    )
+                }
+            }
+        }
+
         if (selectedCategory == EnhancedSettingsCategory.All ||
             selectedCategory == EnhancedSettingsCategory.Core
         ) {
-        SettingsSection(
-            title = stringResource(Res.string.nuvio_enhanced_section_nuvio_experience),
-            isTablet = isTablet,
-        ) {
-            SettingsGroup(isTablet = isTablet) {
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.nuvio_enhanced_home_features_title),
-                    description = stringResource(Res.string.nuvio_enhanced_home_features_desc),
-                    checked = settings.enhancedHomeFeaturesEnabled,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.HomeExperienceControls),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.HomeExperienceControls)
-                        NuvioEnhancedSettingsRepository.setEnhancedHomeFeaturesEnabled(it)
-                    },
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.nuvio_enhanced_concierge_title),
-                    description = stringResource(Res.string.nuvio_enhanced_concierge_desc),
-                    checked = settings.nuvioConciergeEnabled,
-                    enabled = settings.enhancedHomeFeaturesEnabled,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.HomeExperienceControls),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.HomeExperienceControls)
-                        NuvioEnhancedSettingsRepository.setNuvioConciergeEnabled(it)
-                    },
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.nuvio_enhanced_smart_resume_title),
-                    description = stringResource(Res.string.nuvio_enhanced_smart_resume_desc),
-                    checked = settings.smartResumeEnabled,
-                    enabled = settings.enhancedHomeFeaturesEnabled && settings.nuvioConciergeEnabled,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.SmartResume2),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.SmartResume2)
-                        NuvioEnhancedSettingsRepository.setSmartResumeEnabled(it)
-                    },
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.nuvio_enhanced_release_signals_title),
-                    description = stringResource(Res.string.nuvio_enhanced_release_signals_desc),
-                    checked = settings.releaseRadarHomeSignalsEnabled,
-                    enabled = settings.enhancedHomeFeaturesEnabled && settings.nuvioConciergeEnabled,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.HomeExperienceControls),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.HomeExperienceControls)
-                        NuvioEnhancedSettingsRepository.setReleaseRadarHomeSignalsEnabled(it)
-                    },
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.nuvio_enhanced_profile_stats_title),
-                    description = stringResource(Res.string.nuvio_enhanced_profile_stats_desc),
-                    checked = settings.profileStatsEnabled,
-                    enabled = settings.enhancedHomeFeaturesEnabled && settings.nuvioConciergeEnabled,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.HomeExperienceControls),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.HomeExperienceControls)
-                        NuvioEnhancedSettingsRepository.setProfileStatsEnabled(it)
-                    },
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = "Show 'View Details' Button",
-                    description = "Display the 'View Details' button on the hero banner.",
-                    checked = settings.showHeroDetailsButton,
-                    isTablet = isTablet,
-                    onCheckedChange = {
-                        NuvioEnhancedSettingsRepository.setShowHeroDetailsButton(it)
-                    },
-                )
+            SettingsSection(
+                title = stringResource(Res.string.nuvio_enhanced_section_nuvio_experience),
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_home_features_title),
+                        description = stringResource(Res.string.nuvio_enhanced_home_features_desc),
+                        checked = settings.enhancedHomeFeaturesEnabled,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.HomeExperienceControls),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.HomeExperienceControls)
+                            NuvioEnhancedSettingsRepository.setEnhancedHomeFeaturesEnabled(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_concierge_title),
+                        description = stringResource(Res.string.nuvio_enhanced_concierge_desc),
+                        checked = settings.nuvioConciergeEnabled,
+                        enabled = settings.enhancedHomeFeaturesEnabled,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.HomeExperienceControls),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.HomeExperienceControls)
+                            NuvioEnhancedSettingsRepository.setNuvioConciergeEnabled(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_smart_resume_title),
+                        description = stringResource(Res.string.nuvio_enhanced_smart_resume_desc),
+                        checked = settings.smartResumeEnabled,
+                        enabled = settings.enhancedHomeFeaturesEnabled && settings.nuvioConciergeEnabled,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.SmartResume2),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.SmartResume2)
+                            NuvioEnhancedSettingsRepository.setSmartResumeEnabled(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_release_signals_title),
+                        description = stringResource(Res.string.nuvio_enhanced_release_signals_desc),
+                        checked = settings.releaseRadarHomeSignalsEnabled,
+                        enabled = settings.enhancedHomeFeaturesEnabled && settings.nuvioConciergeEnabled,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.HomeExperienceControls),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.HomeExperienceControls)
+                            NuvioEnhancedSettingsRepository.setReleaseRadarHomeSignalsEnabled(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_profile_stats_title),
+                        description = stringResource(Res.string.nuvio_enhanced_profile_stats_desc),
+                        checked = settings.profileStatsEnabled,
+                        enabled = settings.enhancedHomeFeaturesEnabled && settings.nuvioConciergeEnabled,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.HomeExperienceControls),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.HomeExperienceControls)
+                            NuvioEnhancedSettingsRepository.setProfileStatsEnabled(it)
+                        },
+                    )
+                }
             }
         }
 
-        SettingsSection(
-            title = stringResource(Res.string.nuvio_enhanced_section_premium_labs),
-            isTablet = isTablet,
+        if (selectedCategory == EnhancedSettingsCategory.All ||
+            selectedCategory == EnhancedSettingsCategory.System
         ) {
-            SettingsGroup(isTablet = isTablet) {
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.nuvio_enhanced_smart_shelf_title),
-                    description = stringResource(Res.string.nuvio_enhanced_smart_shelf_desc),
-                    checked = settings.smartShelvesEnabled,
-                    enabled = settings.enhancedHomeFeaturesEnabled && !settings.quietHomeModeEnabled,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.SmartShelfComposer),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.SmartShelfComposer)
-                        NuvioEnhancedSettingsRepository.setSmartShelvesEnabled(it)
-                    },
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.nuvio_enhanced_release_digest_title),
-                    description = stringResource(Res.string.nuvio_enhanced_release_digest_desc),
-                    checked = settings.releaseRadarDigestEnabled,
-                    enabled = settings.enhancedHomeFeaturesEnabled,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.ReleaseRadarDigest),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.ReleaseRadarDigest)
-                        NuvioEnhancedSettingsRepository.setReleaseRadarDigestEnabled(it)
-                    },
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.nuvio_enhanced_quiet_home_title),
-                    description = stringResource(Res.string.nuvio_enhanced_quiet_home_desc),
-                    checked = settings.quietHomeModeEnabled,
-                    enabled = settings.enhancedHomeFeaturesEnabled,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.QuietHomeMode),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.QuietHomeMode)
-                        NuvioEnhancedSettingsRepository.setQuietHomeModeEnabled(it)
-                    },
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.nuvio_enhanced_library_health_title),
-                    description = stringResource(Res.string.nuvio_enhanced_library_health_desc),
-                    checked = settings.libraryHealthEnabled,
-                    enabled = settings.enhancedHomeFeaturesEnabled,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.LibraryHealth),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.LibraryHealth)
-                        NuvioEnhancedSettingsRepository.setLibraryHealthEnabled(it)
-                    },
-                )
+            SettingsSection(
+                title = stringResource(Res.string.nuvio_enhanced_section_premium_labs),
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_smart_shelf_title),
+                        description = stringResource(Res.string.nuvio_enhanced_smart_shelf_desc),
+                        checked = settings.smartShelvesEnabled,
+                        enabled = settings.enhancedHomeFeaturesEnabled && !settings.quietHomeModeEnabled,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.SmartShelfComposer),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.SmartShelfComposer)
+                            NuvioEnhancedSettingsRepository.setSmartShelvesEnabled(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_release_digest_title),
+                        description = stringResource(Res.string.nuvio_enhanced_release_digest_desc),
+                        checked = settings.releaseRadarDigestEnabled,
+                        enabled = settings.enhancedHomeFeaturesEnabled,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.ReleaseRadarDigest),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.ReleaseRadarDigest)
+                            NuvioEnhancedSettingsRepository.setReleaseRadarDigestEnabled(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_quiet_home_title),
+                        description = stringResource(Res.string.nuvio_enhanced_quiet_home_desc),
+                        checked = settings.quietHomeModeEnabled,
+                        enabled = settings.enhancedHomeFeaturesEnabled,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.QuietHomeMode),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.QuietHomeMode)
+                            NuvioEnhancedSettingsRepository.setQuietHomeModeEnabled(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_library_health_title),
+                        description = stringResource(Res.string.nuvio_enhanced_library_health_desc),
+                        checked = settings.libraryHealthEnabled,
+                        enabled = settings.enhancedHomeFeaturesEnabled,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.LibraryHealth),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.LibraryHealth)
+                            NuvioEnhancedSettingsRepository.setLibraryHealthEnabled(it)
+                        },
+                    )
+                }
+            }
+
+            SettingsSection(
+                title = stringResource(Res.string.nuvio_enhanced_section_app_experience),
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_live_tv_title),
+                        description = stringResource(Res.string.nuvio_enhanced_live_tv_desc),
+                        checked = settings.liveTvEnabled,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.LiveTvControls),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.LiveTvControls)
+                            NuvioEnhancedSettingsRepository.setLiveTvEnabled(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_source_pinning_title),
+                        description = stringResource(Res.string.nuvio_enhanced_source_pinning_desc),
+                        checked = settings.streamSourcePinningEnabled,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.StreamSourcePinning),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.StreamSourcePinning)
+                            NuvioEnhancedSettingsRepository.setStreamSourcePinningEnabled(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_status_bar_title),
+                        description = stringResource(Res.string.nuvio_enhanced_status_bar_desc),
+                        checked = settings.statusBarVisible,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.StatusBarVisibility),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.StatusBarVisibility)
+                            NuvioEnhancedSettingsRepository.setStatusBarVisible(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.settings_continue_watching_ready_badge_title),
+                        description = stringResource(Res.string.settings_continue_watching_ready_badge_description),
+                        checked = settings.showContinueWatchingReadyBadge,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.HomeExperienceControls),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.HomeExperienceControls)
+                            NuvioEnhancedSettingsRepository.setShowContinueWatchingReadyBadge(it)
+                        },
+                    )
+                }
             }
         }
 
-        SettingsSection(
-            title = stringResource(Res.string.nuvio_enhanced_section_app_experience),
-            isTablet = isTablet,
-        ) {
-            SettingsGroup(isTablet = isTablet) {
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.nuvio_enhanced_live_tv_title),
-                    description = stringResource(Res.string.nuvio_enhanced_live_tv_desc),
-                    checked = settings.liveTvEnabled,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.LiveTvControls),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.LiveTvControls)
-                        NuvioEnhancedSettingsRepository.setLiveTvEnabled(it)
-                    },
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.nuvio_enhanced_source_pinning_title),
-                    description = stringResource(Res.string.nuvio_enhanced_source_pinning_desc),
-                    checked = settings.streamSourcePinningEnabled,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.StreamSourcePinning),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.StreamSourcePinning)
-                        NuvioEnhancedSettingsRepository.setStreamSourcePinningEnabled(it)
-                    },
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.nuvio_enhanced_status_bar_title),
-                    description = stringResource(Res.string.nuvio_enhanced_status_bar_desc),
-                    checked = settings.statusBarVisible,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.StatusBarVisibility),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.StatusBarVisibility)
-                        NuvioEnhancedSettingsRepository.setStatusBarVisible(it)
-                    },
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_continue_watching_ready_badge_title),
-                    description = stringResource(Res.string.settings_continue_watching_ready_badge_description),
-                    checked = settings.showContinueWatchingReadyBadge,
-                    isTablet = isTablet,
-                    highlighted = isNew(NuvioEnhancedFeature.HomeExperienceControls),
-                    onCheckedChange = {
-                        markSeen(NuvioEnhancedFeature.HomeExperienceControls)
-                        NuvioEnhancedSettingsRepository.setShowContinueWatchingReadyBadge(it)
-                    },
-                )
-            }
-        }
-
-        if (selectedCategory == EnhancedSettingsCategory.Core ||
-            selectedCategory == EnhancedSettingsCategory.All
-        ) {
+        if (selectedCategory == EnhancedSettingsCategory.Plus) {
             SettingsSection(
                 title = "Anime Tracking & Sync",
                 isTablet = isTablet,
@@ -1020,7 +1070,6 @@ private fun NuvioEnhancedSettingsPageContent(
                 }
             }
         }
-        }
     }
 
     backupPayload?.let { payload ->
@@ -1165,6 +1214,7 @@ private fun <T> EnhancedChoiceRow(
     options: List<EnhancedChoiceOption<T>>,
     isTablet: Boolean,
     highlighted: Boolean,
+    enabled: Boolean = true,
     onSelected: (T) -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -1184,6 +1234,7 @@ private fun <T> EnhancedChoiceRow(
                     Modifier
                 },
             )
+            .then(if (enabled) Modifier else Modifier.alpha(0.38f))
             .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -1216,7 +1267,7 @@ private fun <T> EnhancedChoiceRow(
             options.forEach { option ->
                 val isSelected = option.value == selected
                 Surface(
-                    modifier = Modifier.clickable { onSelected(option.value) },
+                    modifier = Modifier.clickable(enabled = enabled) { onSelected(option.value) },
                     color = if (isSelected) {
                         tokens.colors.accent
                     } else {
@@ -1395,6 +1446,7 @@ private fun EnhancedSettingsCategoryBar(
             add(EnhancedSettingsCategory.New to stringResource(Res.string.nuvio_enhanced_category_new))
         }
         add(EnhancedSettingsCategory.All to stringResource(Res.string.nuvio_enhanced_category_all))
+        add(EnhancedSettingsCategory.Plus to "Plus")
         add(EnhancedSettingsCategory.Core to stringResource(Res.string.nuvio_enhanced_category_core))
         add(EnhancedSettingsCategory.Home to stringResource(Res.string.nuvio_enhanced_category_home))
         add(EnhancedSettingsCategory.Player to stringResource(Res.string.nuvio_enhanced_category_player))

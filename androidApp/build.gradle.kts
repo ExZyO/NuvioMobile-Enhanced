@@ -19,6 +19,10 @@ plugins {
     alias(libs.plugins.sentry.android.gradle)
 }
 
+sentry {
+    autoUploadProguardMapping.set(false)
+}
+
 val localProps = Properties().apply {
     val propsFile = rootProject.file("local.properties")
     if (propsFile.exists()) propsFile.inputStream().use { load(it) }
@@ -180,4 +184,8 @@ dependencies {
     implementation(libs.androidx.appcompat)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     debugImplementation(libs.compose.uiTooling)
+}
+
+tasks.matching { it.name.startsWith("uploadSentry") }.configureEach {
+    enabled = sentryMappingUploadEnabled
 }

@@ -1932,7 +1932,10 @@ private fun ConfiguredMetaSections(
     fun RenderSection(key: MetaScreenSectionKey, showHeader: Boolean = true) {
         when (key) {
             MetaScreenSectionKey.ACTIONS -> {
-                val isAnime = meta.genres.any { it.equals("anime", ignoreCase = true) } || meta.genres.any { it.contains("animation", ignoreCase = true) }
+                val nuvioEnhancedSettings by com.nuvio.app.features.settings.NuvioEnhancedSettingsRepository.uiState.collectAsStateWithLifecycle()
+                val isAnime = nuvioEnhancedSettings.forceAnimeTrackingForAllContent ||
+                    meta.genres.any { it.equals("anime", ignoreCase = true) } ||
+                    meta.genres.any { it.contains("animation", ignoreCase = true) }
                 val actualFeaturedAction = if (isAnime) {
                     DetailSecondaryAction(
                         label = "Tracker",

@@ -29,6 +29,9 @@ internal data class NuvioEnhancedSettingsUiState(
     val showHeroRatings: Boolean = true,
     val showHeroOverview: Boolean = false,
     val showHeroDetailsButton: Boolean = true,
+    val originalNuvioHeroBannerEnabled: Boolean = false,
+    val forceAnimeTrackingForAllContent: Boolean = false,
+    val showEpisodeAirCountdown: Boolean = true,
     val heroRefreshHapticsEnabled: Boolean = true,
     val smartShelvesEnabled: Boolean = false,
     val releaseRadarDigestEnabled: Boolean = false,
@@ -122,6 +125,9 @@ private data class StoredNuvioEnhancedSettings(
     val showHeroRatings: Boolean = true,
     val showHeroOverview: Boolean = false,
     val showHeroDetailsButton: Boolean = true,
+    val originalNuvioHeroBannerEnabled: Boolean = false,
+    val forceAnimeTrackingForAllContent: Boolean = false,
+    val showEpisodeAirCountdown: Boolean = true,
     val heroOverviewUserConfigured: Boolean = false,
     val heroRefreshHapticsEnabled: Boolean = true,
     val smartShelvesEnabled: Boolean = false,
@@ -144,6 +150,7 @@ internal object NuvioEnhancedSettingsRepository {
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
+        coerceInputValues = true
     }
 
     private val _uiState = MutableStateFlow(NuvioEnhancedSettingsUiState())
@@ -355,6 +362,18 @@ internal object NuvioEnhancedSettingsRepository {
         persist()
     }
 
+    fun setOriginalNuvioHeroBannerEnabled(enabled: Boolean) = update {
+        copy(originalNuvioHeroBannerEnabled = enabled)
+    }
+
+    fun setForceAnimeTrackingForAllContent(enabled: Boolean) = update {
+        copy(forceAnimeTrackingForAllContent = enabled)
+    }
+
+    fun setShowEpisodeAirCountdown(enabled: Boolean) = update {
+        copy(showEpisodeAirCountdown = enabled)
+    }
+
     private fun publish() {
         _uiState.value = NuvioEnhancedSettingsUiState(
             enhancedHomeFeaturesEnabled = stored.enhancedHomeFeaturesEnabled,
@@ -375,6 +394,9 @@ internal object NuvioEnhancedSettingsRepository {
             showHeroRatings = stored.showHeroRatings,
             showHeroOverview = stored.showHeroOverview,
             showHeroDetailsButton = stored.showHeroDetailsButton,
+            originalNuvioHeroBannerEnabled = stored.originalNuvioHeroBannerEnabled,
+            forceAnimeTrackingForAllContent = stored.forceAnimeTrackingForAllContent,
+            showEpisodeAirCountdown = stored.showEpisodeAirCountdown,
             heroRefreshHapticsEnabled = stored.heroRefreshHapticsEnabled,
             smartShelvesEnabled = stored.smartShelvesEnabled,
             releaseRadarDigestEnabled = stored.releaseRadarDigestEnabled,

@@ -336,6 +336,7 @@ internal fun SettingsSwitchRow(
     enabled: Boolean = true,
     isTablet: Boolean,
     highlighted: Boolean = false,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -368,6 +369,23 @@ internal fun SettingsSwitchRow(
                 .alpha(if (enabled) NuvioTokens.Opacity.visible else tokens.opacity.medium),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (icon != null) {
+                Surface(
+                    modifier = Modifier.size(if (isTablet) 36.dp else 32.dp),
+                    color = tokens.colors.accent.copy(alpha = 0.16f),
+                    shape = RoundedCornerShape(999.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = tokens.colors.accent,
+                            modifier = Modifier.size(if (isTablet) 20.dp else 18.dp),
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+            }
             Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {

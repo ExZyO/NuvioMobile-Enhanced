@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
@@ -54,6 +55,7 @@ fun NuvioContinueWatchingActionSheet(
     onOpenDetails: () -> Unit,
     onStartFromBeginning: (() -> Unit)? = null,
     onPlayManually: (() -> Unit)? = null,
+    onOpenTracker: (() -> Unit)? = null,
     onRemove: () -> Unit,
 ) {
     if (item == null) return
@@ -114,7 +116,15 @@ fun NuvioContinueWatchingActionSheet(
                             onClick = { dismissAfter(onStartFromBeginning) },
                         )
                     }
-                    if (showDetailsOption || (showManualPlayOption && onPlayManually != null) || (!item.isNextUp && onStartFromBeginning != null)) {
+                    if (onOpenTracker != null) {
+                        ContinueWatchingSheetDivider()
+                        ContinueWatchingSheetActionRow(
+                            icon = Icons.Default.Edit,
+                            title = "Tracking",
+                            onClick = { dismissAfter(onOpenTracker) },
+                        )
+                    }
+                    if (showDetailsOption || (showManualPlayOption && onPlayManually != null) || (!item.isNextUp && onStartFromBeginning != null) || onOpenTracker != null) {
                         ContinueWatchingSheetDivider()
                     }
                     ContinueWatchingSheetActionRow(

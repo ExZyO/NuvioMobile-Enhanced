@@ -83,18 +83,21 @@ enum class MetaScreenBackgroundMode {
 enum class MetaEpisodeCardStyle {
     Horizontal,
     List,
+    VerticalHorizontal,
     ;
 
     companion object {
         fun parse(raw: String?): MetaEpisodeCardStyle? = when (raw?.lowercase()) {
             "horizontal" -> Horizontal
             "list" -> List
+            "vertical_horizontal", "verticalhorizontal", "vertical_cards" -> VerticalHorizontal
             else -> null
         }
 
         fun persist(style: MetaEpisodeCardStyle): String = when (style) {
             Horizontal -> "horizontal"
             List -> "list"
+            VerticalHorizontal -> "vertical_horizontal"
         }
     }
 }

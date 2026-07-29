@@ -563,12 +563,14 @@ private val MetaEpisodeCardStyle.labelRes: StringResource
     get() = when (this) {
         MetaEpisodeCardStyle.Horizontal -> Res.string.settings_meta_episode_style_horizontal
         MetaEpisodeCardStyle.List -> Res.string.settings_meta_episode_style_list
+        MetaEpisodeCardStyle.VerticalHorizontal -> Res.string.settings_meta_episode_style_horizontal
     }
 
 private val MetaEpisodeCardStyle.descriptionRes: StringResource
     get() = when (this) {
         MetaEpisodeCardStyle.Horizontal -> Res.string.settings_meta_episode_style_horizontal_description
         MetaEpisodeCardStyle.List -> Res.string.settings_meta_episode_style_list_description
+        MetaEpisodeCardStyle.VerticalHorizontal -> Res.string.settings_meta_episode_style_horizontal_description
     }
 
 private val MetaScreenSectionKey.titleRes: StringResource
@@ -625,7 +627,7 @@ private fun MetaEpisodeCardStylePreview(
         verticalArrangement = Arrangement.Center,
     ) {
         when (style) {
-            MetaEpisodeCardStyle.Horizontal -> {
+            MetaEpisodeCardStyle.Horizontal, MetaEpisodeCardStyle.VerticalHorizontal -> {
                 Box(
                     modifier = Modifier
                         .width(128.dp)

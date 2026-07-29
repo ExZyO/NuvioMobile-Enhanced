@@ -269,6 +269,31 @@ private fun NuvioEnhancedSettingsPageContent(
                             NuvioEnhancedSettingsRepository.setShowEpisodeAirCountdown(it)
                         },
                     )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    EnhancedChoiceRow(
+                        title = "Episode Cards Layout",
+                        description = "Choose how episode cards are arranged on the details page. Vertical Cards displays large horizontal cards arranged in a vertical list.",
+                        selected = detailSettings.episodeCardStyle,
+                        options = listOf(
+                            EnhancedChoiceOption(
+                                com.nuvio.app.features.details.MetaEpisodeCardStyle.Horizontal,
+                                "Horizontal",
+                            ),
+                            EnhancedChoiceOption(
+                                com.nuvio.app.features.details.MetaEpisodeCardStyle.List,
+                                "Compact List",
+                            ),
+                            EnhancedChoiceOption(
+                                com.nuvio.app.features.details.MetaEpisodeCardStyle.VerticalHorizontal,
+                                "Vertical Cards",
+                            ),
+                        ),
+                        isTablet = isTablet,
+                        highlighted = false,
+                        onSelected = {
+                            MetaScreenSettingsRepository.setEpisodeCardStyle(it)
+                        },
+                    )
                 }
             }
         }

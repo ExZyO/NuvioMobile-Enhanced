@@ -191,6 +191,20 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
         }
         // EaZy Nuvio+ End
 
+        outDir.resolve("com/nuvio/app/features/simkl").apply {
+            mkdirs()
+            resolve("SimklConfig.kt").writeText(
+                """
+                |package com.nuvio.app.features.simkl
+                |
+                |object SimklConfig {
+                |    val CLIENT_ID = "${props.getProperty("SIMKL_CLIENT_ID", "")}" 
+                |    val REDIRECT_URI = "${props.getProperty("SIMKL_REDIRECT_URI", "nuvio://simkl/callback")}"
+                |}
+                """.trimMargin()
+            )
+        }
+
         outDir.resolve("com/nuvio/app/features/updater").apply {
             mkdirs()
             resolve("AppUpdateConfig.kt").writeText(

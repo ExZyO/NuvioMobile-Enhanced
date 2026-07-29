@@ -1475,7 +1475,7 @@ private val streamingShowcaseRatingVisuals = listOf(
         displayName = "IMDb",
         logo = Res.drawable.rating_imdb,
         logoWidth = 30.dp,
-        valueColor = Color(0xFFF5C518),
+        valueColor = Color(0xFFFFC107),
         format = ::formatShowcaseOneDecimal,
     ),
     StreamingShowcaseRatingVisuals(
@@ -1483,7 +1483,7 @@ private val streamingShowcaseRatingVisuals = listOf(
         displayName = "Rotten Tomatoes",
         logo = Res.drawable.rating_rotten_tomatoes,
         logoWidth = 15.dp,
-        valueColor = Color(0xFFFF3B1F),
+        valueColor = Color(0xFFFA320A),
         format = ::formatShowcasePercent,
     ),
     StreamingShowcaseRatingVisuals(
@@ -1515,7 +1515,7 @@ private val streamingShowcaseRatingVisuals = listOf(
         displayName = "Audience Score",
         logo = Res.drawable.rating_audience_score,
         logoWidth = 15.dp,
-        valueColor = Color(0xFFFF3B1F),
+        valueColor = Color(0xFFFA320A),
         format = ::formatShowcasePercent,
     ),
     StreamingShowcaseRatingVisuals(
@@ -2255,30 +2255,25 @@ private fun PosterHeroRatingChip(
     rating: PosterHeroRatingItem,
 ) {
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(Color.Black.copy(alpha = 0.30f))
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.16f),
-                shape = RoundedCornerShape(999.dp),
-            )
-            .padding(horizontal = 11.dp, vertical = 7.dp),
-        horizontalArrangement = Arrangement.spacedBy(9.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = rating.label,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.sp,
+            ),
             color = rating.accent,
-            fontWeight = FontWeight.Black,
             maxLines = 1,
         )
         Text(
             text = rating.value,
-            style = MaterialTheme.typography.labelLarge,
-            color = Color.White.copy(alpha = 0.78f),
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.sp,
+            ),
+            color = rating.accent,
             maxLines = 1,
         )
     }
@@ -2463,36 +2458,31 @@ private fun HeroContentBlock(
         if (showcaseRatings.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             FlowRow(
-                horizontalArrangement = if (layout.isTablet && !isOriginalNuvioHero) Arrangement.Start else Arrangement.Center,
+                horizontalArrangement = if (layout.isTablet && !isOriginalNuvioHero) Arrangement.spacedBy(14.dp, Alignment.Start) else Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 showcaseRatings.forEach { rating ->
-                    Surface(
-                        color = Color.Black.copy(alpha = 0.45f),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, rating.valueColor.copy(alpha = 0.35f)),
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        ) {
-                            Image(
-                                painter = painterResource(rating.logo),
-                                contentDescription = rating.displayName,
-                                modifier = Modifier
-                                    .height(14.dp)
-                                    .widthIn(max = rating.logoWidth),
-                                contentScale = ContentScale.Fit,
-                            )
-                            Text(
-                                text = rating.text,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = rating.valueColor,
+                        Image(
+                            painter = painterResource(rating.logo),
+                            contentDescription = rating.displayName,
+                            modifier = Modifier
+                                .height(16.dp)
+                                .widthIn(max = rating.logoWidth),
+                            contentScale = ContentScale.Fit,
+                        )
+                        Text(
+                            text = rating.text,
+                            style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                            )
-                        }
+                                letterSpacing = 0.sp,
+                            ),
+                            color = rating.valueColor,
+                        )
                     }
                 }
             }

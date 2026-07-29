@@ -47,6 +47,7 @@ fun handleAppUrl(url: String) {
     // EaZy Nuvio+ Start
     com.nuvio.app.features.anilist.AniListAuthRepository.onAuthCallbackReceived(normalizedUrl)
     com.nuvio.app.features.mal.MalAuthRepository.onAuthCallbackReceived(normalizedUrl)
+    com.nuvio.app.features.simkl.handleSimklAuthCallbackUrl(normalizedUrl)
     // EaZy Nuvio+ End
     AppDeepLinkRepository.handleUrl(normalizedUrl)
 }

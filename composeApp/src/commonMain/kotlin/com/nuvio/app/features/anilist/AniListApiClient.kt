@@ -1,4 +1,4 @@
-﻿package com.nuvio.app.features.anilist
+package com.nuvio.app.features.anilist
 
 import com.nuvio.app.features.addons.httpPostJsonWithHeaders
 import kotlinx.serialization.encodeToString
@@ -446,9 +446,9 @@ data class SearchResult(
     val id: Int,
     val title: String,
     val imageUrl: String?,
-    val type: String?,
-    val startDate: String?,
-    val status: String?,
-    val score: Double?,
-    val description: String?
+    val type: String? = null,
+    val startDate: String? = null,
+    val status: String? = null,
+    val score: Double? = null,
+    val description: String? = null
 )

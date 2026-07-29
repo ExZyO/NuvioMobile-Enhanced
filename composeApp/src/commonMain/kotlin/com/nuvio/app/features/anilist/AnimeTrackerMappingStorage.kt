@@ -1,4 +1,4 @@
-﻿package com.nuvio.app.features.anilist
+package com.nuvio.app.features.anilist
 
 internal expect object AnimeTrackerMappingStorage {
     fun getAniListOverride(contentId: String): Int?
@@ -8,6 +8,10 @@ internal expect object AnimeTrackerMappingStorage {
     fun getMalOverride(contentId: String): Int?
     fun saveMalOverride(contentId: String, malId: Int)
     fun removeMalOverride(contentId: String)
+
+    fun getSimklOverride(contentId: String): String?
+    fun saveSimklOverride(contentId: String, simklId: String)
+    fun removeSimklOverride(contentId: String)
 
     fun exportToSyncPayload(): Map<String, String>
     fun applySyncPayload(payload: Map<String, String>)

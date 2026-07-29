@@ -132,6 +132,7 @@ class MainActivity : AppCompatActivity() {
         com.nuvio.app.features.anilist.AniListAuthStorage.initialize(applicationContext)
         com.nuvio.app.features.anilist.AnimeTrackerMappingStorage.initialize(applicationContext)
         com.nuvio.app.features.mal.MalAuthStorage.initialize(applicationContext)
+        com.nuvio.app.features.simkl.SimklAuthStorage.initialize(applicationContext)
         TraktCommentsStorage.initialize(applicationContext)
         TraktLibraryStorage.initialize(applicationContext)
         TraktSettingsStorage.initialize(applicationContext)

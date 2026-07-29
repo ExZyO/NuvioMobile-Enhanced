@@ -1,4 +1,4 @@
-﻿package com.nuvio.app.features.anilist
+package com.nuvio.app.features.anilist
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -109,6 +109,11 @@ internal fun AnimeTrackerSheet(
 
     val aniListState by AniListAuthRepository.uiState.collectAsState()
     val malState by MalAuthRepository.uiState.collectAsState()
+    val simklState by com.nuvio.app.features.simkl.SimklAuthRepository.uiState.collectAsState()
+
+    var simklId by remember { mutableStateOf<String?>(null) }
+    var simklTitle by remember { mutableStateOf<String?>(null) }
+    var simklImageUrl by remember { mutableStateOf<String?>(null) }
 
     var aniListStatusExpanded by remember { mutableStateOf(false) }
     var malStatusExpanded by remember { mutableStateOf(false) }
@@ -126,6 +131,8 @@ internal fun AnimeTrackerSheet(
         isLoading = true
         aniListId = resolveToAniListId(contentId, videoId)
         malId = resolveToMalId(contentId, videoId)
+        val simklOverride = AnimeTrackerMappingStorage.getSimklOverride(contentId)
+        simklId = if (simklOverride == "UNTRACKED") null else simklOverride
         isResolvingIds = false
     }
 
@@ -148,7 +155,7 @@ internal fun AnimeTrackerSheet(
         maxEpisodes = 2000
     }
 
-    LaunchedEffect(aniListId, malId, isResolvingIds) {
+    LaunchedEffect(aniListId, malId, simklId, isResolvingIds) {
         if (isResolvingIds) return@LaunchedEffect
         isLoading = true
 
@@ -271,8 +278,41 @@ internal fun AnimeTrackerSheet(
             }
         }
 
+        val simklJob = launch {
+            val savedSimkl = AnimeTrackerMappingStorage.getSimklOverride(contentId)
+            if (savedSimkl == "UNTRACKED") {
+                simklId = null
+                return@launch
+            }
+            if (simklState.credentialsConfigured) {
+                val token = com.nuvio.app.features.simkl.SimklAuthRepository.getAccessToken()
+                val clientId = com.nuvio.app.features.simkl.SimklAuthRepository.getClientId()
+                if (!token.isNullOrBlank()) {
+                    val imdbId = simklId?.takeIf { it.startsWith("tt") } ?: contentId.takeIf { it.startsWith("tt") }
+                    val tmdbId = simklId?.takeIf { !it.startsWith("tt") && it.all { c -> c.isDigit() } } ?: contentId.removePrefix("tmdb:").takeIf { contentId.startsWith("tmdb:") }
+                    val entry = com.nuvio.app.features.simkl.SimklApiClient.fetchItemStatus(clientId, token, imdbId, tmdbId, malId?.toString(), simklId)
+                    if (entry != null) {
+                        val item = entry.show ?: entry.movie ?: entry.anime
+                        if (item != null) {
+                            simklTitle = item.title ?: title
+                            val poster = item.poster
+                            if (!poster.isNullOrBlank()) {
+                                simklImageUrl = if (poster.startsWith("http")) poster else "https://simkl.in/posters/${poster}_m.jpg"
+                            }
+                            if (item.totalEpisodes != null && item.totalEpisodes > 0) {
+                                maxEpisodes = item.totalEpisodes
+                            }
+                            if (simklId == null && item.ids?.simkl != null) {
+                                simklId = item.ids.simkl.toString()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         withTimeoutOrNull(5000) {
-            joinAll(aniJob, malJob)
+            joinAll(aniJob, malJob, simklJob)
         }
         isLoading = false
     }
@@ -294,12 +334,28 @@ internal fun AnimeTrackerSheet(
             if (searchQuery.isNotBlank() && !isSearching) {
                 scope.launch {
                     isSearching = true
-                    if (searchMode == "AniList") {
-                        val token = AniListAuthRepository.getAccessToken()
-                        if (token != null) searchResults = AniListApiClient.searchAnime(token, searchQuery)
-                    } else {
-                        val token = MalAuthRepository.getAccessToken()
-                        if (token != null) searchResults = MalApiClient.searchAnime(token, searchQuery)
+                    when (searchMode) {
+                        "AniList" -> {
+                            val token = AniListAuthRepository.getAccessToken()
+                            if (token != null) searchResults = AniListApiClient.searchAnime(token, searchQuery)
+                        }
+                        "MAL" -> {
+                            val token = MalAuthRepository.getAccessToken()
+                            if (token != null) searchResults = MalApiClient.searchAnime(token, searchQuery)
+                        }
+                        "Simkl" -> {
+                            val clientId = com.nuvio.app.features.simkl.SimklAuthRepository.getClientId()
+                            val res = com.nuvio.app.features.simkl.SimklApiClient.searchItems(clientId, searchQuery)
+                            searchResults = res.map {
+                                val posterUrl = it.poster?.let { p -> if (p.startsWith("http")) p else "https://simkl.in/posters/${p}_m.jpg" }
+                                SearchResult(
+                                    id = it.ids?.simkl ?: 0,
+                                    title = it.title ?: "",
+                                    imageUrl = posterUrl,
+                                    type = it.year?.toString()
+                                )
+                            }
+                        }
                     }
                     isSearching = false
                 }
@@ -331,7 +387,7 @@ internal fun AnimeTrackerSheet(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        label = { Text("Search Anime", color = TextSecondary) },
+                        label = { Text("Search Anime / Media", color = TextSecondary) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -370,16 +426,25 @@ internal fun AnimeTrackerSheet(
                                 SearchItemCard(
                                     result = result,
                                     onClick = {
-                                        if (searchMode == "AniList") {
-                                            aniListId = result.id
-                                            aniListTitle = result.title
-                                            aniListImageUrl = result.imageUrl
-                                            AnimeTrackerMappingStorage.saveAniListOverride(contentId, result.id)
-                                        } else {
-                                            malId = result.id
-                                            malTitle = result.title
-                                            malImageUrl = result.imageUrl
-                                            AnimeTrackerMappingStorage.saveMalOverride(contentId, result.id)
+                                        when (searchMode) {
+                                            "AniList" -> {
+                                                aniListId = result.id
+                                                aniListTitle = result.title
+                                                aniListImageUrl = result.imageUrl
+                                                AnimeTrackerMappingStorage.saveAniListOverride(contentId, result.id)
+                                            }
+                                            "MAL" -> {
+                                                malId = result.id
+                                                malTitle = result.title
+                                                malImageUrl = result.imageUrl
+                                                AnimeTrackerMappingStorage.saveMalOverride(contentId, result.id)
+                                            }
+                                            "Simkl" -> {
+                                                simklId = result.id.toString()
+                                                simklTitle = result.title
+                                                simklImageUrl = result.imageUrl
+                                                AnimeTrackerMappingStorage.saveSimklOverride(contentId, result.id.toString())
+                                            }
                                         }
                                         showSearchModal = false
                                     }
@@ -461,10 +526,14 @@ internal fun AnimeTrackerSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(bottom = 16.dp)
         ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
             // Hero Header Card
             ProSectionCard {
                 Row(
@@ -603,11 +672,66 @@ internal fun AnimeTrackerSheet(
                     }
                 }
 
-                if (aniListState.mode != AniListConnectionMode.CONNECTED && malState.mode != MalConnectionMode.CONNECTED) {
+                if (simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
+                    if (simklId != null) {
+                        TrackedItemPreview(
+                            label = "Simkl",
+                            title = simklTitle ?: "Linked",
+                            imageUrl = simklImageUrl,
+                            onOpen = { uriHandler.openUri("https://simkl.com/shows/$simklId") },
+                            onChange = { searchMode = "Simkl"; showSearchModal = true },
+                            onUntrack = {
+                                simklId = null
+                                simklTitle = null
+                                simklImageUrl = null
+                                scope.launch {
+                                    AnimeTrackerMappingStorage.saveSimklOverride(contentId, "UNTRACKED")
+                                }
+                            },
+                            onDelete = {
+                                val currentId = simklId
+                                simklId = null
+                                simklTitle = null
+                                simklImageUrl = null
+                                scope.launch {
+                                    AnimeTrackerMappingStorage.saveSimklOverride(contentId, "UNTRACKED")
+                                    val token = com.nuvio.app.features.simkl.SimklAuthRepository.getAccessToken()
+                                    val clientId = com.nuvio.app.features.simkl.SimklAuthRepository.getClientId()
+                                    if (!token.isNullOrBlank() && currentId != null) {
+                                        com.nuvio.app.features.simkl.SimklApiClient.untrackItem(
+                                            clientId = clientId,
+                                            accessToken = token,
+                                            imdbId = currentId.takeIf { it.startsWith("tt") } ?: contentId.takeIf { it.startsWith("tt") },
+                                            tmdbId = currentId.takeIf { !it.startsWith("tt") && it.all { c -> c.isDigit() } } ?: contentId.removePrefix("tmdb:").takeIf { contentId.startsWith("tmdb:") },
+                                            malId = null,
+                                            simklId = currentId,
+                                            mediaType = if (videoId != null || maxEpisodes > 1) "show" else "movie"
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    } else {
+                        OutlinedButton(
+                            onClick = { searchMode = "Simkl"; showSearchModal = true },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00C755)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00C755).copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Link Simkl Account", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                if (aniListState.mode != AniListConnectionMode.CONNECTED &&
+                    malState.mode != MalConnectionMode.CONNECTED &&
+                    simklState.mode != com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED
+                ) {
                     ProSectionCard {
                         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp, horizontal = 16.dp), contentAlignment = Alignment.Center) {
                             Text(
-                                text = "Please connect AniList or MyAnimeList in Settings to track your anime progress.",
+                                text = "Please connect AniList, MyAnimeList, or Simkl in Settings to track your progress.",
                                 textAlign = TextAlign.Center,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = TextSecondary
@@ -876,8 +1000,28 @@ internal fun AnimeTrackerSheet(
                         }
                     }
 
-                    // Dates & Rewatches Card
-                    if (aniListId != null || malId != null) {
+                    // Simkl Section Card
+                    if (simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
+                        com.nuvio.app.features.simkl.SimklTrackerCard(
+                            imdbId = simklId?.takeIf { it.startsWith("tt") } ?: contentId.takeIf { it.startsWith("tt") },
+                            tmdbId = simklId?.takeIf { !it.startsWith("tt") && it.all { c -> c.isDigit() } } ?: contentId.removePrefix("tmdb:").takeIf { contentId.startsWith("tmdb:") },
+                            malId = malId?.toString(),
+                            simklId = simklId,
+                            mediaType = if (videoId != null || maxEpisodes > 1) "show" else "movie",
+                            maxEpisodesCount = maxEpisodes,
+                            onUntrack = {
+                                simklId = null
+                                simklTitle = null
+                                simklImageUrl = null
+                                scope.launch {
+                                    AnimeTrackerMappingStorage.saveSimklOverride(contentId, "UNTRACKED")
+                                }
+                            }
+                        )
+                    }
+
+                    // Dates & Rewatches Card (only if AniList or MAL is connected)
+                    if (aniListState.mode == AniListConnectionMode.CONNECTED || malState.mode == MalConnectionMode.CONNECTED) {
                         ProSectionCard {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                                 Text("Dates & Notes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
@@ -1028,18 +1172,21 @@ internal fun AnimeTrackerSheet(
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
+                    }
 
-                        // Sticky Action Bar - Save Progress
-                        Button(
-                            onClick = {
-                                val currentAniId = aniListId
-                                val currentMalId = malId
-                                onDismiss()
-                                CoroutineScope(Dispatchers.Default).launch {
-                                    val startLd = startDateMillis?.let { Instant.fromEpochMilliseconds(it).toLocalDateTime(TimeZone.UTC).date }
-                                    val finishLd = finishDateMillis?.let { Instant.fromEpochMilliseconds(it).toLocalDateTime(TimeZone.UTC).date }
+                }
 
-                                    if (currentAniId != null && aniListState.mode == AniListConnectionMode.CONNECTED) {
+                // Sticky Action Bar - Save Progress
+                Button(
+                    onClick = {
+                        val currentAniId = aniListId
+                        val currentMalId = malId
+                        onDismiss()
+                        CoroutineScope(Dispatchers.Default).launch {
+                            val startLd = startDateMillis?.let { Instant.fromEpochMilliseconds(it).toLocalDateTime(TimeZone.UTC).date }
+                            val finishLd = finishDateMillis?.let { Instant.fromEpochMilliseconds(it).toLocalDateTime(TimeZone.UTC).date }
+
+                            if (currentAniId != null && aniListState.mode == AniListConnectionMode.CONNECTED) {
                                         AnimeTrackerMappingStorage.saveAniListOverride(contentId, currentAniId)
                                         val token = AniListAuthRepository.getAccessToken()
                                         if (!token.isNullOrBlank()) {
@@ -1114,7 +1261,6 @@ internal fun AnimeTrackerSheet(
             }
         }
     }
-}
 
 @Composable
 private fun ProSectionCard(
@@ -1142,7 +1288,11 @@ private fun TrackedItemPreview(
     onUntrack: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val brandColor = if (label.contains("AniList", ignoreCase = true)) AniListBrandColor else MalBrandColor
+    val brandColor = when {
+        label.contains("AniList", ignoreCase = true) -> AniListBrandColor
+        label.contains("Simkl", ignoreCase = true) -> Color(0xFF00C755)
+        else -> MalBrandColor
+    }
     ProSectionCard {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

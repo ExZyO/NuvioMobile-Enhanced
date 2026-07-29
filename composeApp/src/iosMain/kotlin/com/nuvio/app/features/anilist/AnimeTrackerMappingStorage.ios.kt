@@ -1,10 +1,11 @@
-﻿package com.nuvio.app.features.anilist
+package com.nuvio.app.features.anilist
 
 import platform.Foundation.NSUserDefaults
 
 internal actual object AnimeTrackerMappingStorage {
     private const val prefixAniList = "nuvio_tracker_anilist_"
     private const val prefixMal = "nuvio_tracker_mal_"
+    private const val prefixSimkl = "nuvio_tracker_simkl_"
 
     actual fun getAniListOverride(contentId: String): Int? {
         val id = NSUserDefaults.standardUserDefaults.integerForKey(prefixAniList + contentId).toInt()
@@ -32,12 +33,25 @@ internal actual object AnimeTrackerMappingStorage {
         NSUserDefaults.standardUserDefaults.removeObjectForKey(prefixMal + contentId)
     }
 
+    actual fun getSimklOverride(contentId: String): String? {
+        val str = NSUserDefaults.standardUserDefaults.stringForKey(prefixSimkl + contentId)
+        return str?.takeIf { it.isNotBlank() }
+    }
+
+    actual fun saveSimklOverride(contentId: String, simklId: String) {
+        NSUserDefaults.standardUserDefaults.setObject(simklId, forKey = prefixSimkl + contentId)
+    }
+
+    actual fun removeSimklOverride(contentId: String) {
+        NSUserDefaults.standardUserDefaults.removeObjectForKey(prefixSimkl + contentId)
+    }
+
     actual fun exportToSyncPayload(): Map<String, String> {
         val defaults = NSUserDefaults.standardUserDefaults.dictionaryRepresentation()
         val payload = mutableMapOf<String, String>()
         for ((key, value) in defaults) {
             val keyStr = key.toString()
-            if (keyStr.startsWith(prefixAniList) || keyStr.startsWith(prefixMal)) {
+            if (keyStr.startsWith(prefixAniList) || keyStr.startsWith(prefixMal) || keyStr.startsWith(prefixSimkl)) {
                 payload[keyStr] = value.toString()
             }
         }
@@ -46,8 +60,12 @@ internal actual object AnimeTrackerMappingStorage {
 
     actual fun applySyncPayload(payload: Map<String, String>) {
         for ((key, value) in payload) {
-            value.toIntOrNull()?.let {
-                NSUserDefaults.standardUserDefaults.setInteger(it.toLong(), forKey = key)
+            if (key.startsWith(prefixSimkl)) {
+                NSUserDefaults.standardUserDefaults.setObject(value, forKey = key)
+            } else {
+                value.toIntOrNull()?.let {
+                    NSUserDefaults.standardUserDefaults.setInteger(it.toLong(), forKey = key)
+                }
             }
         }
     }

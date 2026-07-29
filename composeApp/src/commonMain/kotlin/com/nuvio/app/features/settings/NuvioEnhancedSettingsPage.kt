@@ -141,6 +141,10 @@ private fun NuvioEnhancedSettingsPageContent(
         com.nuvio.app.features.mal.MalAuthRepository.ensureLoaded()
         com.nuvio.app.features.mal.MalAuthRepository.uiState
     }.collectAsStateWithLifecycle()
+    val simklState by remember {
+        com.nuvio.app.features.simkl.SimklAuthRepository.ensureLoaded()
+        com.nuvio.app.features.simkl.SimklAuthRepository.uiState
+    }.collectAsStateWithLifecycle()
     val lastCrashReport by remember {
         CrashDiagnostics.lastReport
     }.collectAsStateWithLifecycle()
@@ -493,7 +497,7 @@ private fun NuvioEnhancedSettingsPageContent(
 
         if (selectedCategory == EnhancedSettingsCategory.Plus) {
             SettingsSection(
-                title = "Anime Tracking & Sync",
+                title = "Media Trackers",
                 isTablet = isTablet,
             ) {
                 SettingsGroup(isTablet = isTablet) {
@@ -505,6 +509,11 @@ private fun NuvioEnhancedSettingsPageContent(
                     com.nuvio.app.features.mal.MalConnectionCard(
                         isTablet = isTablet,
                         uiState = malState,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    com.nuvio.app.features.simkl.SimklConnectionCard(
+                        isTablet = isTablet,
+                        uiState = simklState,
                     )
                 }
             }

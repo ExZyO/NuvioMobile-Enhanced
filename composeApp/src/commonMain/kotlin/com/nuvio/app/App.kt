@@ -3596,24 +3596,16 @@ private fun MainAppContent(
                                     }
                                 },
                             ),
-                        ).let { defaultActions ->
-                             val isAnimePoster = nuvioEnhancedSettings.forceAnimeTrackingForAllContent ||
-                                 preview.genres.any { it.equals("anime", ignoreCase = true) || it.contains("animation", ignoreCase = true) } ||
-                                 preview.type.contains("anime", ignoreCase = true)
-                             if (isAnimePoster) {
-                                 defaultActions + PosterZoomOverlayAction(
-                                     icon = Icons.Default.Edit,
-                                     label = "Tracking",
-                                     onSelected = {
-                                         showPosterTrackerSheet = posterActionTarget
-                                         selectedPosterActionTarget = null
-                                         selectedPosterAnchor = null
-                                     },
-                                 )
-                             } else {
-                                 defaultActions
-                             }
-                        },
+                            PosterZoomOverlayAction(
+                                icon = Icons.Default.Edit,
+                                label = "Tracking",
+                                onSelected = {
+                                    showPosterTrackerSheet = posterActionTarget
+                                    selectedPosterActionTarget = null
+                                    selectedPosterAnchor = null
+                                },
+                            ),
+                        ),
                         hazeState = posterOverlayHazeState,
                         onDismissed = {
                             selectedPosterActionTarget = null
@@ -3722,20 +3714,15 @@ private fun MainAppContent(
                 onPlayManually = selectedContinueWatchingForActions
                     ?.let { item -> { onContinueWatchingPlayManually(item) } },
                 onOpenTracker = selectedContinueWatchingForActions?.let { item ->
-                    val isAnimeCW = nuvioEnhancedSettings.forceAnimeTrackingForAllContent ||
-                        item.parentMetaType.contains("anime", ignoreCase = true) ||
-                        item.title.contains("anime", ignoreCase = true)
-                    if (isAnimeCW) {
-                        {
-                            showPosterTrackerSheet = PosterActionTarget(
-                                preview = MetaPreview(
-                                    id = item.parentMetaId,
-                                    type = item.parentMetaType,
-                                    name = item.title,
-                                ),
-                            )
-                        }
-                    } else null
+                    {
+                        showPosterTrackerSheet = PosterActionTarget(
+                            preview = MetaPreview(
+                                id = item.parentMetaId,
+                                type = item.parentMetaType,
+                                name = item.title,
+                            ),
+                        )
+                    }
                 },
                 onRemove = {
                     selectedContinueWatchingForActions?.let(onContinueWatchingRemove)

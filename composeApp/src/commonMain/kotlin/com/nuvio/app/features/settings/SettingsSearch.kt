@@ -625,16 +625,6 @@ internal fun settingsSearchEntries(
     )
     addRow(
         page = SettingsPage.NuvioEnhanced,
-        key = "force-anime-tracking-all",
-        title = "Enable Tracking for All Content",
-        description = "Display the Anime Tracking button (AniList & MyAnimeList) for all movies and shows, even if anime metadata is not detected.",
-        pageLabel = nuvioEnhancedPage,
-        section = "Plus",
-        category = enhancedCategory,
-        icon = Icons.Rounded.AutoAwesome,
-    )
-    addRow(
-        page = SettingsPage.NuvioEnhanced,
         key = "show-episode-air-countdown",
         title = "Show Episode Air Countdown",
         description = "Display a countdown badge in details panel showing time remaining until upcoming episodes air (e.g. Airs Today, Airs in 5d).",

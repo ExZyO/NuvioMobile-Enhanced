@@ -1001,7 +1001,7 @@ internal fun AnimeTrackerSheet(
                     }
 
                     // Simkl Section Card
-                    if (simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
+                    if (simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED && simklId != null) {
                         com.nuvio.app.features.simkl.SimklTrackerCard(
                             imdbId = simklId?.takeIf { it.startsWith("tt") } ?: contentId.takeIf { it.startsWith("tt") },
                             tmdbId = simklId?.takeIf { !it.startsWith("tt") && it.all { c -> c.isDigit() } } ?: contentId.removePrefix("tmdb:").takeIf { contentId.startsWith("tmdb:") },
@@ -1020,11 +1020,12 @@ internal fun AnimeTrackerSheet(
                         )
                     }
 
-                    // Dates & Rewatches Card (only if AniList or MAL is connected)
-                    if (aniListState.mode == AniListConnectionMode.CONNECTED || malState.mode == MalConnectionMode.CONNECTED) {
+                    // Dates & Rewatches Card (only if AniList or MAL is tracking something)
+                    if ((aniListState.mode == AniListConnectionMode.CONNECTED && aniListId != null) ||
+                        (malState.mode == MalConnectionMode.CONNECTED && malId != null)) {
                         ProSectionCard {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                Text("Dates & Notes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                Text("Dates & Notes (AniList & MAL)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
 
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     OutlinedButton(

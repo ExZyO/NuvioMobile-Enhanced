@@ -1932,20 +1932,12 @@ private fun ConfiguredMetaSections(
     fun RenderSection(key: MetaScreenSectionKey, showHeader: Boolean = true) {
         when (key) {
             MetaScreenSectionKey.ACTIONS -> {
-                val nuvioEnhancedSettings by com.nuvio.app.features.settings.NuvioEnhancedSettingsRepository.uiState.collectAsStateWithLifecycle()
-                val isAnime = nuvioEnhancedSettings.forceAnimeTrackingForAllContent ||
-                    meta.genres.any { it.equals("anime", ignoreCase = true) } ||
-                    meta.genres.any { it.contains("animation", ignoreCase = true) }
-                val actualFeaturedAction = if (isAnime) {
-                    DetailSecondaryAction(
-                        label = "Tracker",
-                        icon = Icons.Default.Edit,
-                        isActive = false,
-                        onClick = onTrackerClick,
-                    )
-                } else {
-                    featuredAction
-                }
+                val actualFeaturedAction = DetailSecondaryAction(
+                    label = "Tracker",
+                    icon = Icons.Default.Edit,
+                    isActive = false,
+                    onClick = onTrackerClick,
+                )
                 DetailActionButtons(
                     playLabel = playButtonLabel,
                     featuredAction = actualFeaturedAction,

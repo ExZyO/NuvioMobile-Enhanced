@@ -255,16 +255,6 @@ private fun NuvioEnhancedSettingsPageContent(
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
-                        title = "Enable Tracking for All Content",
-                        description = "Display the Anime Tracking button (AniList & MyAnimeList) for all movies and shows, even if anime metadata is not detected.",
-                        checked = settings.forceAnimeTrackingForAllContent,
-                        isTablet = isTablet,
-                        onCheckedChange = {
-                            NuvioEnhancedSettingsRepository.setForceAnimeTrackingForAllContent(it)
-                        },
-                    )
-                    SettingsGroupDivider(isTablet = isTablet)
-                    SettingsSwitchRow(
                         title = "Show Episode Air Countdown",
                         description = "Display a countdown badge in details panel showing time remaining until upcoming episodes air (e.g. Airs Today, Airs in 5d).",
                         checked = settings.showEpisodeAirCountdown,

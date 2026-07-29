@@ -60,8 +60,8 @@ fun SimklTrackerCard(
         maxEpisodesCount > 0 && maxEpisodesCount != 2000 -> maxEpisodesCount
         else -> 500
     }
-    val sliderMax = if (finalMaxEpisodes != 500) finalMaxEpisodes else maxOf(100, progress + 20)
-    val maxDisplayStr = if (finalMaxEpisodes != 500) "$finalMaxEpisodes" else "?"
+    val sliderMax = if (finalMaxEpisodes != 500) maxOf(finalMaxEpisodes, progress) else maxOf(50, progress + 20)
+    val maxDisplayStr = if (finalMaxEpisodes != 500) "$finalMaxEpisodes" else if (progress > 0) "$progress+" else "?"
 
     val statuses = listOf("Watching", "Plan to Watch", "Completed", "On Hold", "Dropped")
 
@@ -285,7 +285,7 @@ fun SimklTrackerCard(
                             onClick = {
                                 if (progress > 0) {
                                     progress -= 1
-                                    syncStatusToSimkl(newProg = progress)
+                                    syncStatusToSimkl(newStatus = status, newProg = progress)
                                 }
                             },
                             modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(OledSheetBg)
@@ -294,9 +294,11 @@ fun SimklTrackerCard(
                         }
                         Slider(
                             value = progress.toFloat().coerceIn(0f, sliderMax.toFloat()),
-                            onValueChange = { progress = it.roundToInt() },
+                            onValueChange = {
+                                progress = it.roundToInt()
+                            },
                             onValueChangeFinished = {
-                                syncStatusToSimkl(newProg = progress)
+                                syncStatusToSimkl(newStatus = status, newProg = progress)
                             },
                             valueRange = 0f..sliderMax.toFloat(),
                             modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
@@ -309,7 +311,7 @@ fun SimklTrackerCard(
                             onClick = {
                                 if (progress < sliderMax) {
                                     progress += 1
-                                    syncStatusToSimkl(newProg = progress)
+                                    syncStatusToSimkl(newStatus = status, newProg = progress)
                                 }
                             },
                             modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(OledSheetBg)

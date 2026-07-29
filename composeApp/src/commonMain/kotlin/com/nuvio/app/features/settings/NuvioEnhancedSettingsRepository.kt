@@ -30,7 +30,6 @@ internal data class NuvioEnhancedSettingsUiState(
     val showHeroOverview: Boolean = false,
     val showHeroDetailsButton: Boolean = true,
     val originalNuvioHeroBannerEnabled: Boolean = false,
-    val forceAnimeTrackingForAllContent: Boolean = false,
     val showEpisodeAirCountdown: Boolean = true,
     val heroRefreshHapticsEnabled: Boolean = true,
     val smartShelvesEnabled: Boolean = false,
@@ -126,7 +125,6 @@ private data class StoredNuvioEnhancedSettings(
     val showHeroOverview: Boolean = false,
     val showHeroDetailsButton: Boolean = true,
     val originalNuvioHeroBannerEnabled: Boolean = false,
-    val forceAnimeTrackingForAllContent: Boolean = false,
     val showEpisodeAirCountdown: Boolean = true,
     val heroOverviewUserConfigured: Boolean = false,
     val heroRefreshHapticsEnabled: Boolean = true,
@@ -366,10 +364,6 @@ internal object NuvioEnhancedSettingsRepository {
         copy(originalNuvioHeroBannerEnabled = enabled)
     }
 
-    fun setForceAnimeTrackingForAllContent(enabled: Boolean) = update {
-        copy(forceAnimeTrackingForAllContent = enabled)
-    }
-
     fun setShowEpisodeAirCountdown(enabled: Boolean) = update {
         copy(showEpisodeAirCountdown = enabled)
     }
@@ -395,7 +389,6 @@ internal object NuvioEnhancedSettingsRepository {
             showHeroOverview = stored.showHeroOverview,
             showHeroDetailsButton = stored.showHeroDetailsButton,
             originalNuvioHeroBannerEnabled = stored.originalNuvioHeroBannerEnabled,
-            forceAnimeTrackingForAllContent = stored.forceAnimeTrackingForAllContent,
             showEpisodeAirCountdown = stored.showEpisodeAirCountdown,
             heroRefreshHapticsEnabled = stored.heroRefreshHapticsEnabled,
             smartShelvesEnabled = stored.smartShelvesEnabled,

@@ -1290,6 +1290,41 @@ object WatchedRepository {
             nuvioSyncSucceeded = nuvioSyncSucceeded,
             succeededTrackerProviderIds = succeededTrackerProviderIds,
         )
+
+        // EaZy Nuvio+ Start — Push episode watch marks to connected Simkl & MAL services
+        for (item in items) {
+            val epNum = item.episode
+            if (epNum != null && epNum > 0) {
+                val (imdbId, tmdbId, malId) = parseMediaIds(item.id)
+                val mediaType = item.type.ifBlank { "series" }
+                val seasonNum = item.season
+
+                if (com.nuvio.app.features.simkl.SimklAuthRepository.snapshot().mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
+                    runCatching {
+                        com.nuvio.app.features.simkl.SimklScrobbleRepository.scrobbleStop(
+                            imdbId = imdbId,
+                            tmdbId = tmdbId,
+                            malId = malId,
+                            mediaType = mediaType,
+                            seasonNumber = seasonNum,
+                            episodeNumber = epNum,
+                        )
+                    }
+                }
+
+                if (com.nuvio.app.features.mal.MalAuthRepository.snapshot().mode == com.nuvio.app.features.mal.MalConnectionMode.CONNECTED) {
+                    runCatching {
+                        com.nuvio.app.features.mal.MalScrobbleRepository.scrobbleStop(
+                            contentId = item.id,
+                            videoId = null,
+                            seasonNumber = seasonNum,
+                            episodeNumber = epNum,
+                        )
+                    }
+                }
+            }
+        }
+        // EaZy Nuvio+ End
     }
 
     private suspend fun deleteFromTargetsForSource(
@@ -1400,3 +1435,18 @@ internal fun effectiveWatchedSource(
 
 private fun String.isSeriesLikeWatchedType(): Boolean =
     trim().lowercase() in setOf("series", "show", "tv", "tvshow")
+
+private fun parseMediaIds(rawId: String): Triple<String?, String?, String?> {
+    var imdbId: String? = null
+    var tmdbId: String? = null
+    var malId: String? = null
+    val clean = rawId.trim()
+    when {
+        clean.startsWith("tt") -> imdbId = clean
+        clean.startsWith("imdb:") -> imdbId = clean.removePrefix("imdb:")
+        clean.startsWith("tmdb:") -> tmdbId = clean.removePrefix("tmdb:")
+        clean.startsWith("mal:") -> malId = clean.removePrefix("mal:")
+        clean.all { it.isDigit() } -> tmdbId = clean
+    }
+    return Triple(imdbId, tmdbId, malId)
+}

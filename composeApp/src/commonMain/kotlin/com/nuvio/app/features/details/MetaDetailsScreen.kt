@@ -714,12 +714,16 @@ fun MetaDetailsScreen(
                     heroTrailerCandidate?.id,
                     heroTrailerCandidate?.key,
                     deferredMetaWorkAllowed,
+                    nuvioEnhancedSettings.extraTrailerDelayEnabled,
                 ) {
                     heroTrailerPlaybackSource = null
                     heroTrailerReady = false
                     heroTrailerFinished = false
                     if (!deferredMetaWorkAllowed || !heroTrailerPlaybackEnabled || heroTrailerCandidate == null) {
                         return@LaunchedEffect
+                    }
+                    if (nuvioEnhancedSettings.extraTrailerDelayEnabled) {
+                        delay(1500)
                     }
                     val resolvedSource = runCatching {
                         TrailerPlaybackResolver.resolveFromYouTubeUrl(heroTrailerCandidate.youtubePlaybackUrl())

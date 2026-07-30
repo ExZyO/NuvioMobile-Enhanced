@@ -1099,6 +1099,16 @@ private fun StreamingShowcaseHeroPage(
                 )
             }
 
+            val nuvioEnhancedSettings by NuvioEnhancedSettingsRepository.uiState.collectAsState()
+            val ratingsAboveMetadata = nuvioEnhancedSettings.ratingsAboveMetadata
+
+            if (ratingsAboveMetadata && showcaseRatings.isNotEmpty()) {
+                StreamingShowcaseSignalsRow(
+                    ratings = showcaseRatings,
+                    compact = compactControls,
+                )
+            }
+
             if (
                 genreLabel != null ||
                 releaseLabel != null ||
@@ -1151,7 +1161,7 @@ private fun StreamingShowcaseHeroPage(
                 onSaveClick = { onSaveClick?.invoke(item) },
             )
 
-            if (awardLabel != null || showcaseRatings.isNotEmpty()) {
+            if (awardLabel != null || (!ratingsAboveMetadata && showcaseRatings.isNotEmpty())) {
                 Column(verticalArrangement = Arrangement.spacedBy(if (landscapeCompact) 5.dp else 8.dp)) {
                     awardLabel?.takeUnless { landscapeCompact }?.let { award ->
                         Text(
@@ -1163,10 +1173,12 @@ private fun StreamingShowcaseHeroPage(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    StreamingShowcaseSignalsRow(
-                        ratings = showcaseRatings,
-                        compact = compactControls,
-                    )
+                    if (!ratingsAboveMetadata && showcaseRatings.isNotEmpty()) {
+                        StreamingShowcaseSignalsRow(
+                            ratings = showcaseRatings,
+                            compact = compactControls,
+                        )
+                    }
                 }
             }
         }
@@ -2074,6 +2086,20 @@ private fun PosterArtHeroPage(
                 )
             }
 
+            val nuvioEnhancedSettings by NuvioEnhancedSettingsRepository.uiState.collectAsState()
+            val ratingsAboveMetadata = nuvioEnhancedSettings.ratingsAboveMetadata
+
+            if (ratingsAboveMetadata && ratingItems.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ratingItems.forEach { rating ->
+                        PosterHeroRatingChip(rating = rating)
+                    }
+                }
+            }
+
             if (metadataLine.isNotBlank()) {
                 Text(
                     text = metadataLine,
@@ -2098,7 +2124,7 @@ private fun PosterArtHeroPage(
                 )
             }
 
-            if (ratingItems.isNotEmpty()) {
+            if (!ratingsAboveMetadata && ratingItems.isNotEmpty()) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -2433,6 +2459,41 @@ private fun HeroContentBlock(
             emptyList()
         }
 
+        val ratingsAboveMetadata = nuvioEnhancedSettings.ratingsAboveMetadata
+
+        if (ratingsAboveMetadata && showcaseRatings.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            FlowRow(
+                horizontalArrangement = if (layout.isTablet && !isOriginalNuvioHero) Arrangement.spacedBy(14.dp, Alignment.Start) else Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                showcaseRatings.forEach { rating ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        Image(
+                            painter = painterResource(rating.logo),
+                            contentDescription = rating.displayName,
+                            modifier = Modifier
+                                .height(16.dp)
+                                .widthIn(max = rating.logoWidth),
+                            contentScale = ContentScale.Fit,
+                        )
+                        Text(
+                            text = rating.text,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.sp,
+                            ),
+                            color = rating.valueColor,
+                        )
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(10.dp))
         if (isOriginalNuvioHero) {
             val subtitleText = heroMetaItems.joinToString(" • ") { it.text }
@@ -2455,7 +2516,7 @@ private fun HeroContentBlock(
             )
         }
 
-        if (showcaseRatings.isNotEmpty()) {
+        if (!ratingsAboveMetadata && showcaseRatings.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             FlowRow(
                 horizontalArrangement = if (layout.isTablet && !isOriginalNuvioHero) Arrangement.spacedBy(14.dp, Alignment.Start) else Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),

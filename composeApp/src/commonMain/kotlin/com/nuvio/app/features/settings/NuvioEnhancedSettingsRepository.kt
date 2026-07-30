@@ -1,5 +1,6 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.AppIconResource
 import com.nuvio.app.features.home.HomeReleaseRadarCategory
 import com.nuvio.app.features.home.HomeReleaseRadarItem
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,10 +28,12 @@ internal data class NuvioEnhancedSettingsUiState(
     val streamingShowcaseVideoPreviewSoundEnabled: Boolean = true,
     val compactHeroMetadata: Boolean = true,
     val showHeroRatings: Boolean = true,
+    val ratingsAboveMetadata: Boolean = false,
     val showHeroOverview: Boolean = false,
     val showHeroDetailsButton: Boolean = true,
     val originalNuvioHeroBannerEnabled: Boolean = false,
     val showEpisodeAirCountdown: Boolean = true,
+    val extraTrailerDelayEnabled: Boolean = false,
     val heroRefreshHapticsEnabled: Boolean = true,
     val smartShelvesEnabled: Boolean = false,
     val releaseRadarDigestEnabled: Boolean = false,
@@ -40,6 +43,7 @@ internal data class NuvioEnhancedSettingsUiState(
     val playerStatusOverlayEnabled: Boolean = false,
     val subtitleSelectorStyle: NuvioSubtitleSelectorStyle = NuvioSubtitleSelectorStyle.Enhanced,
     val showContinueWatchingReadyBadge: Boolean = true,
+    val selectedAppIconId: String = "default",
     val releaseRadarLibraryOnly: Boolean = true,
     val releaseRadarWindowDays: Int = 30,
     val releaseRadarContentFilter: NuvioReleaseRadarContentFilter = NuvioReleaseRadarContentFilter.All,
@@ -52,6 +56,23 @@ internal data class NuvioEnhancedSettingsUiState(
 
     val hasNewFeatures: Boolean
         get() = featureHighlightsEnabled && NuvioEnhancedFeature.entries.any { it.id !in seenFeatureIds }
+}
+
+@Serializable
+internal enum class NuvioAppIconOption(
+    val id: String,
+    val aliasName: String,
+    val label: String,
+    val iconResource: AppIconResource,
+) {
+    Default("default", "com.nuvio.enhanced.IconDefault", "Default", AppIconResource.LauncherDefault),
+    Enhanced("enhanced", "com.nuvio.enhanced.IconEnhanced", "Enhanced", AppIconResource.LauncherEnhanced),
+    Monochrome("monochrome", "com.nuvio.enhanced.IconMonochrome", "Monochrome", AppIconResource.LauncherMonochrome),
+    Neon("neon", "com.nuvio.enhanced.IconNeon", "Neon", AppIconResource.LauncherNeon),
+    Gear("gear", "com.nuvio.enhanced.IconGear", "Gear", AppIconResource.LauncherGear),
+    Chrome("chrome", "com.nuvio.enhanced.IconChrome", "Chrome", AppIconResource.LauncherChrome),
+    Aurora("aurora", "com.nuvio.enhanced.IconAurora", "Aurora", AppIconResource.LauncherAurora),
+    Emerald("emerald", "com.nuvio.enhanced.IconEmerald", "Emerald", AppIconResource.LauncherEmerald),
 }
 
 internal enum class NuvioHeroDisplayMode {
@@ -102,6 +123,7 @@ internal enum class NuvioEnhancedFeature(val id: String) {
     StreamSourcePinning("stream_source_pinning"),
     BackgroundStreamPrefetch("background_stream_prefetch"),
     ContentWarnings("content_warnings"),
+    ExtraTrailerDelay("extra_trailer_delay"),
 }
 
 @Serializable
@@ -122,10 +144,12 @@ private data class StoredNuvioEnhancedSettings(
     val streamingShowcaseVideoPreviewSoundEnabled: Boolean = true,
     val compactHeroMetadata: Boolean = true,
     val showHeroRatings: Boolean = true,
+    val ratingsAboveMetadata: Boolean = false,
     val showHeroOverview: Boolean = false,
     val showHeroDetailsButton: Boolean = true,
     val originalNuvioHeroBannerEnabled: Boolean = false,
     val showEpisodeAirCountdown: Boolean = true,
+    val extraTrailerDelayEnabled: Boolean = false,
     val heroOverviewUserConfigured: Boolean = false,
     val heroRefreshHapticsEnabled: Boolean = true,
     val smartShelvesEnabled: Boolean = false,
@@ -136,6 +160,10 @@ private data class StoredNuvioEnhancedSettings(
     val playerStatusOverlayEnabled: Boolean = false,
     val subtitleSelectorStyle: NuvioSubtitleSelectorStyle = NuvioSubtitleSelectorStyle.Enhanced,
     val showContinueWatchingReadyBadge: Boolean = true,
+    // EaZy Nuvio+ Start
+    val appIconSelectionRemoved: Boolean = false,
+    val selectedAppIconId: String = "default",
+    // EaZy Nuvio+ End
     val releaseRadarLibraryOnly: Boolean = true,
     val releaseRadarWindowDays: Int = 30,
     val releaseRadarContentFilter: NuvioReleaseRadarContentFilter = NuvioReleaseRadarContentFilter.All,
@@ -269,6 +297,10 @@ internal object NuvioEnhancedSettingsRepository {
         copy(showHeroRatings = enabled)
     }
 
+    fun setRatingsAboveMetadata(enabled: Boolean) = update {
+        copy(ratingsAboveMetadata = enabled)
+    }
+
     fun setShowHeroOverview(enabled: Boolean) = update {
         copy(
             showHeroOverview = enabled,
@@ -368,6 +400,10 @@ internal object NuvioEnhancedSettingsRepository {
         copy(showEpisodeAirCountdown = enabled)
     }
 
+    fun setSelectedAppIcon(option: NuvioAppIconOption) = update {
+        copy(selectedAppIconId = option.id)
+    }
+
     private fun publish() {
         _uiState.value = NuvioEnhancedSettingsUiState(
             enhancedHomeFeaturesEnabled = stored.enhancedHomeFeaturesEnabled,
@@ -386,10 +422,12 @@ internal object NuvioEnhancedSettingsRepository {
             streamingShowcaseVideoPreviewSoundEnabled = stored.streamingShowcaseVideoPreviewSoundEnabled,
             compactHeroMetadata = stored.compactHeroMetadata,
             showHeroRatings = stored.showHeroRatings,
+            ratingsAboveMetadata = stored.ratingsAboveMetadata,
             showHeroOverview = stored.showHeroOverview,
             showHeroDetailsButton = stored.showHeroDetailsButton,
             originalNuvioHeroBannerEnabled = stored.originalNuvioHeroBannerEnabled,
             showEpisodeAirCountdown = stored.showEpisodeAirCountdown,
+            extraTrailerDelayEnabled = stored.extraTrailerDelayEnabled,
             heroRefreshHapticsEnabled = stored.heroRefreshHapticsEnabled,
             smartShelvesEnabled = stored.smartShelvesEnabled,
             releaseRadarDigestEnabled = stored.releaseRadarDigestEnabled,
@@ -399,6 +437,7 @@ internal object NuvioEnhancedSettingsRepository {
             playerStatusOverlayEnabled = stored.playerStatusOverlayEnabled,
             subtitleSelectorStyle = stored.subtitleSelectorStyle,
             showContinueWatchingReadyBadge = stored.showContinueWatchingReadyBadge,
+            selectedAppIconId = stored.selectedAppIconId,
             releaseRadarLibraryOnly = stored.releaseRadarLibraryOnly,
             releaseRadarWindowDays = stored.releaseRadarWindowDays.coerceIn(7, 45),
             releaseRadarContentFilter = stored.releaseRadarContentFilter,
@@ -406,6 +445,10 @@ internal object NuvioEnhancedSettingsRepository {
             discordWelcomeSeen = stored.discordWelcomeSeen,
             seenFeatureIds = stored.seenFeatureIds,
         )
+    }
+
+    fun setExtraTrailerDelayEnabled(enabled: Boolean) = update {
+        copy(extraTrailerDelayEnabled = enabled)
     }
 
     private fun persist() {

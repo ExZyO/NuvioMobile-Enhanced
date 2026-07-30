@@ -12,6 +12,14 @@ enum class AppIconResource {
     PlayerSubtitles,
     PlayerAudioFilled,
     LibraryAddPlus,
+    LauncherDefault,
+    LauncherEnhanced,
+    LauncherMonochrome,
+    LauncherNeon,
+    LauncherGear,
+    LauncherChrome,
+    LauncherAurora,
+    LauncherEmerald,
 }
 
 @Composable

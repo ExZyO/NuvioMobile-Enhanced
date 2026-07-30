@@ -25,5 +25,13 @@ actual fun appIconPainter(icon: AppIconResource): Painter =
             AppIconResource.PlayerSubtitles -> Res.drawable.ic_player_subtitles
             AppIconResource.PlayerAudioFilled -> Res.drawable.ic_player_audio_filled
             AppIconResource.LibraryAddPlus -> Res.drawable.library_add_plus
+            AppIconResource.LauncherDefault -> Res.drawable.discord_mark
+            AppIconResource.LauncherEnhanced -> Res.drawable.discord_mark
+            AppIconResource.LauncherMonochrome -> Res.drawable.discord_mark
+            AppIconResource.LauncherNeon -> Res.drawable.discord_mark
+            AppIconResource.LauncherGear -> Res.drawable.discord_mark
+            AppIconResource.LauncherChrome -> Res.drawable.discord_mark
+            AppIconResource.LauncherAurora -> Res.drawable.discord_mark
+            AppIconResource.LauncherEmerald -> Res.drawable.discord_mark
         }
     )

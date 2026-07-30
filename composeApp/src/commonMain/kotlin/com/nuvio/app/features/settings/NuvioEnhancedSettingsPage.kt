@@ -1,6 +1,8 @@
 package com.nuvio.app.features.settings
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -255,6 +257,26 @@ private fun NuvioEnhancedSettingsPageContent(
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
+                        title = "Ratings Above Metadata",
+                        description = "Place hero rating badges above the release year, genre, and runtime metadata line.",
+                        checked = settings.ratingsAboveMetadata,
+                        isTablet = isTablet,
+                        onCheckedChange = {
+                            NuvioEnhancedSettingsRepository.setRatingsAboveMetadata(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = "Extra Trailer Delay",
+                        description = "Adds a 1.5s delay before auto-playing background trailers in the details panel, preventing unwanted media playback while browsing.",
+                        checked = settings.extraTrailerDelayEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = {
+                            NuvioEnhancedSettingsRepository.setExtraTrailerDelayEnabled(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
                         title = "Show Episode Air Countdown",
                         description = "Display a countdown badge in details panel showing time remaining until upcoming episodes air (e.g. Airs Today, Airs in 5d).",
                         checked = settings.showEpisodeAirCountdown,
@@ -481,6 +503,103 @@ private fun NuvioEnhancedSettingsPageContent(
                             NuvioEnhancedSettingsRepository.setShowContinueWatchingReadyBadge(it)
                         },
                     )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    var showAppIconPickerModal by remember { mutableStateOf(false) }
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.nuvio_enhanced_app_icon_title),
+                        description = stringResource(Res.string.nuvio_enhanced_app_icon_desc),
+                        isTablet = isTablet,
+                        onClick = {
+                            showAppIconPickerModal = true
+                        },
+                    )
+
+                    if (showAppIconPickerModal) {
+                        val dialogTokens = MaterialTheme.nuvio
+                        AlertDialog(
+                            onDismissRequest = { showAppIconPickerModal = false },
+                            title = {
+                                Text(
+                                    text = stringResource(Res.string.nuvio_enhanced_app_icon_title),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = dialogTokens.colors.textPrimary,
+                                )
+                            },
+                            text = {
+                                Column(
+                                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    NuvioAppIconOption.entries.forEach { option ->
+                                        val isSelected = option.id == settings.selectedAppIconId
+                                        Surface(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    NuvioEnhancedSettingsRepository.setSelectedAppIcon(option)
+                                                    NuvioAppIconSwitcher.setIcon(option.aliasName)
+                                                    showAppIconPickerModal = false
+                                                },
+                                            color = dialogTokens.colors.surfaceCard,
+                                            shape = RoundedCornerShape(NuvioTokens.Radius.md),
+                                            border = BorderStroke(
+                                                if (isSelected) 1.5.dp else dialogTokens.borders.hairline,
+                                                if (isSelected) dialogTokens.colors.accent else dialogTokens.colors.borderSubtle,
+                                            ),
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Surface(
+                                                    modifier = Modifier.size(48.dp),
+                                                    shape = RoundedCornerShape(NuvioTokens.Radius.md),
+                                                    color = Color.Transparent,
+                                                ) {
+                                                    Image(
+                                                        painter = appIconPainter(option.iconResource),
+                                                        contentDescription = option.label,
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        contentScale = ContentScale.Crop,
+                                                    )
+                                                }
+                                                Text(
+                                                    text = option.label,
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = dialogTokens.colors.textPrimary,
+                                                    modifier = Modifier.weight(1f),
+                                                )
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.CheckCircle,
+                                                        contentDescription = null,
+                                                        tint = dialogTokens.colors.accent,
+                                                        modifier = Modifier.size(24.dp),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {},
+                            dismissButton = {
+                                TextButton(onClick = { showAppIconPickerModal = false }) {
+                                    Text(
+                                        text = "Cancel",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = dialogTokens.colors.accent,
+                                    )
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }

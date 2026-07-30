@@ -1250,6 +1250,9 @@ private fun MainAppContent(
                     null
                 }
                 val playerLaunch = lastExternalPlayerLaunch
+                if (playerLaunch?.randomEpisodeMode == true) { // EaZy Nuvio+
+                    return@launch
+                }
                 if (progressPercent != null && playerLaunch != null) {
                     val trackingMedia = buildTrackingMediaReference(
                         contentType = playerLaunch.parentMetaType,
@@ -1272,6 +1275,49 @@ private fun MainAppContent(
                             )
                         }
                     }
+
+                    // EaZy Nuvio+ Start — Simkl & MAL direct scrobble
+                    if (progressPercent >= 80f) {
+                        val parentId = playerLaunch.parentMetaId
+                        val seasonNum = playerLaunch.seasonNumber
+                        val epNum = playerLaunch.episodeNumber
+                        val mediaType = playerLaunch.parentMetaType
+
+                        if (com.nuvio.app.features.simkl.SimklAuthRepository.snapshot().mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
+                            var imdbId: String? = null
+                            var tmdbId: String? = null
+                            var malId: String? = null
+                            when {
+                                parentId.startsWith("tt") -> imdbId = parentId
+                                parentId.startsWith("imdb:") -> imdbId = parentId.removePrefix("imdb:")
+                                parentId.startsWith("tmdb:") -> tmdbId = parentId.removePrefix("tmdb:")
+                                parentId.startsWith("mal:") -> malId = parentId.removePrefix("mal:")
+                                parentId.all { c -> c.isDigit() } -> tmdbId = parentId
+                            }
+                            runCatching {
+                                com.nuvio.app.features.simkl.SimklScrobbleRepository.scrobbleStop(
+                                    imdbId = imdbId,
+                                    tmdbId = tmdbId,
+                                    malId = malId,
+                                    mediaType = mediaType ?: "series",
+                                    seasonNumber = seasonNum,
+                                    episodeNumber = epNum,
+                                )
+                            }
+                        }
+
+                        if (com.nuvio.app.features.mal.MalAuthRepository.snapshot().mode == com.nuvio.app.features.mal.MalConnectionMode.CONNECTED) {
+                            runCatching {
+                                com.nuvio.app.features.mal.MalScrobbleRepository.scrobbleStop(
+                                    contentId = parentId,
+                                    videoId = playerLaunch.videoId,
+                                    seasonNumber = seasonNum,
+                                    episodeNumber = epNum,
+                                )
+                            }
+                        }
+                    }
+                    // EaZy Nuvio+ End
                 }
                 playerLaunch?.let { playerLaunch ->
                     val session = WatchProgressPlaybackSession(

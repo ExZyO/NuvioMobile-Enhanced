@@ -14,7 +14,9 @@ internal object SimklScrobbleRepository {
         imdbId: String?,
         tmdbId: String?,
         malId: String?,
+        simklId: String? = null,
         mediaType: String,
+        seasonNumber: Int? = null,
         episodeNumber: Int?,
     ) {
         val uiState = SimklAuthRepository.snapshot()
@@ -26,21 +28,34 @@ internal object SimklScrobbleRepository {
         if (now - lastScrobbleTimeMs < minSendIntervalMs) return
 
         lastScrobbleTimeMs = now
-        val episodes = episodeNumber?.let { listOf(it) }
 
-        log.d { "Scrobbling to Simkl: imdb=$imdbId tmdb=$tmdbId mal=$malId ep=$episodeNumber" }
+        log.d { "Scrobbling to Simkl: imdb=$imdbId tmdb=$tmdbId mal=$malId season=$seasonNumber ep=$episodeNumber" }
 
         val success = runCatching {
-            SimklApiClient.updateItemStatus(
-                clientId = clientId,
-                accessToken = accessToken,
-                imdbId = imdbId,
-                tmdbId = tmdbId,
-                malId = malId,
-                mediaType = mediaType,
-                status = "watching",
-                episodes = episodes,
-            )
+            if (episodeNumber != null && episodeNumber > 0) {
+                SimklApiClient.addEpisodeToHistory(
+                    clientId = clientId,
+                    accessToken = accessToken,
+                    imdbId = imdbId,
+                    tmdbId = tmdbId,
+                    malId = malId,
+                    simklId = simklId,
+                    mediaType = mediaType,
+                    seasonNumber = seasonNumber,
+                    episodeNumber = episodeNumber,
+                )
+            } else {
+                SimklApiClient.updateItemStatus(
+                    clientId = clientId,
+                    accessToken = accessToken,
+                    imdbId = imdbId,
+                    tmdbId = tmdbId,
+                    malId = malId,
+                    simklId = simklId,
+                    mediaType = mediaType,
+                    status = "watching",
+                )
+            }
         }.onFailure { error ->
             if (error is CancellationException) throw error
             log.w(error) { "Failed to scrobble to Simkl" }

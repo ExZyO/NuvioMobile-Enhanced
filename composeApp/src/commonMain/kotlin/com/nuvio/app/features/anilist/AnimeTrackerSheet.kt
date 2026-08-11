@@ -36,6 +36,8 @@ import com.nuvio.app.features.mal.MalApiClient
 import com.nuvio.app.features.mal.MalAuthRepository
 import com.nuvio.app.features.mal.MalConnectionMode
 import com.nuvio.app.features.mal.resolveToMalId
+import com.nuvio.app.features.simkl.matchesContentId
+import com.nuvio.app.features.simkl.simklIdValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.joinAll
@@ -280,12 +282,34 @@ internal fun AnimeTrackerSheet(
             }
         }
 
+        // EaZy Nuvio+ Start — Automatic Simkl Lookup
         val simklJob = launch {
             val savedSimkl = AnimeTrackerMappingStorage.getSimklOverride(contentId)
             if (savedSimkl == "UNTRACKED") {
                 simklId = null
+                return@launch
+            }
+            if (simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
+                com.nuvio.app.features.simkl.SimklSyncRepository.ensureLoaded()
+                val snapshot = com.nuvio.app.features.simkl.SimklSyncRepository.state.value.snapshot
+                val targetId = savedSimkl ?: contentId
+                val localMatch = snapshot.entries.firstOrNull { it.matchesContentId(targetId) }
+                if (localMatch != null && localMatch.media != null) {
+                    val media = localMatch.media!!
+                    simklId = media.ids.simklIdValue()
+                    simklTitle = media.title ?: title
+                    simklImageUrl = com.nuvio.app.features.simkl.simklPosterUrl(media.poster)
+                } else {
+                    val lookupRes = com.nuvio.app.features.simkl.SimklSearchClient.lookupByContentId(targetId)
+                    if (lookupRes != null) {
+                        simklId = lookupRes.simklId
+                        simklTitle = lookupRes.title
+                        simklImageUrl = lookupRes.imageUrl
+                    }
+                }
             }
         }
+        // EaZy Nuvio+ End
 
         withTimeoutOrNull(5000) {
             joinAll(aniJob, malJob, simklJob)
@@ -320,7 +344,7 @@ internal fun AnimeTrackerSheet(
                             if (token != null) searchResults = MalApiClient.searchAnime(token, searchQuery)
                         }
                         "Simkl" -> {
-                            searchResults = emptyList()
+                            searchResults = com.nuvio.app.features.simkl.SimklSearchClient.searchItems(searchQuery) // EaZy Nuvio+
                         }
                     }
                     isSearching = false

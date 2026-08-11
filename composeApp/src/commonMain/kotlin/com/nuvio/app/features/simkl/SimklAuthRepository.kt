@@ -271,18 +271,20 @@ object SimklAuthRepository : TrackingAuthProvider {
             )
             persistMetadata()
             publish(isLoading = false, error = null)
-            fetchAndStoreUserSettings()
-            SimklSyncRepository.refreshAsync(
-                intent = TrackingRefreshIntent.INVALIDATED,
-                origin = SimklRefreshOrigin.AUTHORIZATION,
-            )
+            scope.launch {
+                fetchAndStoreUserSettings()
+                SimklSyncRepository.refreshAsync(
+                    intent = TrackingRefreshIntent.INVALIDATED,
+                    origin = SimklRefreshOrigin.AUTHORIZATION,
+                )
+            }
         }
 
     private suspend fun fetchAndStoreUserSettings(activityWatermark: String? = null): Boolean {
         val response = try {
             SimklApi.client.execute(
                 SimklApiRequest(
-                    method = SimklHttpMethod.POST,
+                    method = SimklHttpMethod.GET,
                     path = "/users/settings",
                 ),
             )

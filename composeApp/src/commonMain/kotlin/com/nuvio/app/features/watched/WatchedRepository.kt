@@ -1299,19 +1299,6 @@ object WatchedRepository {
                 val mediaType = item.type.ifBlank { "series" }
                 val seasonNum = item.season
 
-                if (com.nuvio.app.features.simkl.SimklAuthRepository.snapshot().mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
-                    runCatching {
-                        com.nuvio.app.features.simkl.SimklScrobbleRepository.scrobbleStop(
-                            imdbId = imdbId,
-                            tmdbId = tmdbId,
-                            malId = malId,
-                            mediaType = mediaType,
-                            seasonNumber = seasonNum,
-                            episodeNumber = epNum,
-                        )
-                    }
-                }
-
                 if (com.nuvio.app.features.mal.MalAuthRepository.snapshot().mode == com.nuvio.app.features.mal.MalConnectionMode.CONNECTED) {
                     runCatching {
                         com.nuvio.app.features.mal.MalScrobbleRepository.scrobbleStop(

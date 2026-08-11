@@ -282,32 +282,6 @@ internal fun AnimeTrackerSheet(
             val savedSimkl = AnimeTrackerMappingStorage.getSimklOverride(contentId)
             if (savedSimkl == "UNTRACKED") {
                 simklId = null
-                return@launch
-            }
-            if (simklState.credentialsConfigured) {
-                val token = com.nuvio.app.features.simkl.SimklAuthRepository.getAccessToken()
-                val clientId = com.nuvio.app.features.simkl.SimklAuthRepository.getClientId()
-                if (!token.isNullOrBlank()) {
-                    val imdbId = simklId?.takeIf { it.startsWith("tt") } ?: contentId.takeIf { it.startsWith("tt") }
-                    val tmdbId = simklId?.takeIf { !it.startsWith("tt") && it.all { c -> c.isDigit() } } ?: contentId.removePrefix("tmdb:").takeIf { contentId.startsWith("tmdb:") }
-                    val entry = com.nuvio.app.features.simkl.SimklApiClient.fetchItemStatus(clientId, token, imdbId, tmdbId, malId?.toString(), simklId)
-                    if (entry != null) {
-                        val item = entry.show ?: entry.movie ?: entry.anime
-                        if (item != null) {
-                            simklTitle = item.title ?: title
-                            val poster = item.poster
-                            if (!poster.isNullOrBlank()) {
-                                simklImageUrl = if (poster.startsWith("http")) poster else "https://simkl.in/posters/${poster}_m.jpg"
-                            }
-                            if (item.totalEpisodes != null && item.totalEpisodes > 0) {
-                                maxEpisodes = item.totalEpisodes
-                            }
-                            if (simklId == null && item.ids?.simkl != null) {
-                                simklId = item.ids.simkl.toString()
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -344,17 +318,7 @@ internal fun AnimeTrackerSheet(
                             if (token != null) searchResults = MalApiClient.searchAnime(token, searchQuery)
                         }
                         "Simkl" -> {
-                            val clientId = com.nuvio.app.features.simkl.SimklAuthRepository.getClientId()
-                            val res = com.nuvio.app.features.simkl.SimklApiClient.searchItems(clientId, searchQuery)
-                            searchResults = res.map {
-                                val posterUrl = it.poster?.let { p -> if (p.startsWith("http")) p else "https://simkl.in/posters/${p}_m.jpg" }
-                                SearchResult(
-                                    id = it.ids?.simkl ?: 0,
-                                    title = it.title ?: "",
-                                    imageUrl = posterUrl,
-                                    type = it.year?.toString()
-                                )
-                            }
+                            searchResults = emptyList()
                         }
                     }
                     isSearching = false
@@ -695,19 +659,6 @@ internal fun AnimeTrackerSheet(
                                 simklImageUrl = null
                                 scope.launch {
                                     AnimeTrackerMappingStorage.saveSimklOverride(contentId, "UNTRACKED")
-                                    val token = com.nuvio.app.features.simkl.SimklAuthRepository.getAccessToken()
-                                    val clientId = com.nuvio.app.features.simkl.SimklAuthRepository.getClientId()
-                                    if (!token.isNullOrBlank() && currentId != null) {
-                                        com.nuvio.app.features.simkl.SimklApiClient.untrackItem(
-                                            clientId = clientId,
-                                            accessToken = token,
-                                            imdbId = currentId.takeIf { it.startsWith("tt") } ?: contentId.takeIf { it.startsWith("tt") },
-                                            tmdbId = currentId.takeIf { !it.startsWith("tt") && it.all { c -> c.isDigit() } } ?: contentId.removePrefix("tmdb:").takeIf { contentId.startsWith("tmdb:") },
-                                            malId = null,
-                                            simklId = currentId,
-                                            mediaType = if (videoId != null || maxEpisodes > 1) "show" else "movie"
-                                        )
-                                    }
                                 }
                             }
                         )
@@ -1000,25 +951,7 @@ internal fun AnimeTrackerSheet(
                         }
                     }
 
-                    // Simkl Section Card
-                    if (simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED && simklId != null) {
-                        com.nuvio.app.features.simkl.SimklTrackerCard(
-                            imdbId = simklId?.takeIf { it.startsWith("tt") } ?: contentId.takeIf { it.startsWith("tt") },
-                            tmdbId = simklId?.takeIf { !it.startsWith("tt") && it.all { c -> c.isDigit() } } ?: contentId.removePrefix("tmdb:").takeIf { contentId.startsWith("tmdb:") },
-                            malId = malId?.toString(),
-                            simklId = simklId,
-                            mediaType = if (videoId != null || maxEpisodes > 1) "show" else "movie",
-                            maxEpisodesCount = maxEpisodes,
-                            onUntrack = {
-                                simklId = null
-                                simklTitle = null
-                                simklImageUrl = null
-                                scope.launch {
-                                    AnimeTrackerMappingStorage.saveSimklOverride(contentId, "UNTRACKED")
-                                }
-                            }
-                        )
-                    }
+
 
                     // Dates & Rewatches Card (only if AniList or MAL is tracking something)
                     if ((aniListState.mode == AniListConnectionMode.CONNECTED && aniListId != null) ||

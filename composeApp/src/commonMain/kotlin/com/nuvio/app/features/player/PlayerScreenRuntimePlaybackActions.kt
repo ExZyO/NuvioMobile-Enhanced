@@ -224,33 +224,6 @@ internal fun PlayerScreenRuntime.emitStopScrobbleForCurrentProgress() {
         val epNum = activeEpisodeNumber
         val mediaType = parentMetaType ?: "series"
 
-        if (com.nuvio.app.features.simkl.SimklAuthRepository.snapshot().mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
-            var imdbId: String? = null
-            var tmdbId: String? = null
-            var malId: String? = null
-            if (parentId != null) {
-                when {
-                    parentId.startsWith("tt") -> imdbId = parentId
-                    parentId.startsWith("imdb:") -> imdbId = parentId.removePrefix("imdb:")
-                    parentId.startsWith("tmdb:") -> tmdbId = parentId.removePrefix("tmdb:")
-                    parentId.startsWith("mal:") -> malId = parentId.removePrefix("mal:")
-                    parentId.all { c -> c.isDigit() } -> tmdbId = parentId
-                }
-            }
-            scope.launch {
-                runCatching {
-                    com.nuvio.app.features.simkl.SimklScrobbleRepository.scrobbleStop(
-                        imdbId = imdbId,
-                        tmdbId = tmdbId,
-                        malId = malId,
-                        mediaType = mediaType,
-                        seasonNumber = seasonNum,
-                        episodeNumber = epNum,
-                    )
-                }
-            }
-        }
-
         if (com.nuvio.app.features.mal.MalAuthRepository.snapshot().mode == com.nuvio.app.features.mal.MalConnectionMode.CONNECTED && parentId != null) {
             scope.launch {
                 runCatching {

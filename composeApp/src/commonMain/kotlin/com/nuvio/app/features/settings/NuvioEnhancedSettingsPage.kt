@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.layout.ContentScale
@@ -115,6 +117,11 @@ internal fun LazyListScope.nuvioEnhancedSettingsContent(
 private fun NuvioEnhancedSettingsPageContent(
     isTablet: Boolean,
 ) {
+    val scope = rememberCoroutineScope()
+    val traktState by remember {
+        com.nuvio.app.features.trakt.TraktAuthRepository.ensureLoaded()
+        com.nuvio.app.features.trakt.TraktAuthRepository.uiState
+    }.collectAsStateWithLifecycle()
     val settings by remember {
         NuvioEnhancedSettingsRepository.ensureLoaded()
         NuvioEnhancedSettingsRepository.uiState
@@ -538,7 +545,9 @@ private fun NuvioEnhancedSettingsPageContent(
                                                 .fillMaxWidth()
                                                 .clickable {
                                                     NuvioEnhancedSettingsRepository.setSelectedAppIcon(option)
-                                                    NuvioAppIconSwitcher.setIcon(option.aliasName)
+                                                    scope.launch {
+                                                        AppIconPlatform.activateIcon(option.aliasName) // EaZy Nuvio+
+                                                    }
                                                     showAppIconPickerModal = false
                                                 },
                                             color = dialogTokens.colors.surfaceCard,
@@ -620,9 +629,11 @@ private fun NuvioEnhancedSettingsPageContent(
                         uiState = malState,
                     )
                     SettingsGroupDivider(isTablet = isTablet)
-                    com.nuvio.app.features.simkl.SimklConnectionCard(
+                    TrackingProviderCards(
                         isTablet = isTablet,
-                        uiState = simklState,
+                        traktUiState = traktState,
+                        simklUiState = simklState,
+                        onSupportersClick = {},
                     )
                 }
             }

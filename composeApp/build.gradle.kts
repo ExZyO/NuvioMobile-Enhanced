@@ -154,7 +154,7 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 |    // EaZy Nuvio+ Start
                 |    const val CLIENT_ID = "${simklClientId.get()}"
                 |    const val REDIRECT_URI = "${simklRedirectUri.get()}"
-                |    const val APP_NAME = "${simklAppName.get()}"
+                |    const val APP_NAME = "${props.getProperty("SIMKL_APP_NAME", "Nuvio")}"
                 |    // EaZy Nuvio+ End
                 |}
                 """.trimMargin()
@@ -200,6 +200,7 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 |object SimklConfig {
                 |    val CLIENT_ID = "${props.getProperty("SIMKL_CLIENT_ID", "")}" 
                 |    val REDIRECT_URI = "${props.getProperty("SIMKL_REDIRECT_URI", "nuvio://simkl/callback")}"
+                |    val APP_NAME = "${props.getProperty("SIMKL_APP_NAME", "Nuvio")}"
                 |}
                 """.trimMargin()
             )

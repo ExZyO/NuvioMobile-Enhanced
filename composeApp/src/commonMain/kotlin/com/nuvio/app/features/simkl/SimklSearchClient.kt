@@ -1,9 +1,8 @@
 package com.nuvio.app.features.simkl
 
-// EaZy Nuvio+ Start — Simkl ID lookup, search, and save client for tracker sheet
+// EaZy Nuvio+ Start — Simkl ID lookup, search, and progress save client
 import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.anilist.SearchResult
-import io.ktor.http.encodeURLParameter
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.contentOrNull
@@ -19,30 +18,26 @@ internal object SimklSearchClient {
         val title: String,
         val imageUrl: String?,
         val year: String? = null,
+        val totalEpisodes: Int? = null,
     )
 
     suspend fun lookupByContentId(contentId: String): SimklSearchResultItem? {
-        if (contentId.isBlank() || contentId == "UNTRACKED") return null
-
-        val imdbId = contentId.takeIf { it.startsWith("tt") }
-            ?: contentId.removePrefix("imdb:").takeIf { contentId.startsWith("imdb:") }
-
-        val tmdbId = contentId.removePrefix("tmdb:").takeIf { contentId.startsWith("tmdb:") }
-            ?: contentId.takeIf { !it.startsWith("tt") && it.all { c -> c.isDigit() } }
-
-        val malId = contentId.removePrefix("mal:").takeIf { contentId.startsWith("mal:") }
+        val cleanId = contentId.trim()
+        if (cleanId.isBlank() || cleanId == "UNTRACKED") return null
 
         val queryParam = when {
-            !imdbId.isNullOrBlank() -> "imdb=$imdbId"
-            !tmdbId.isNullOrBlank() -> "tmdb=$tmdbId"
-            !malId.isNullOrBlank() -> "mal=$malId"
-            contentId.all { c -> c.isDigit() } -> "simkl=$contentId"
+            cleanId.startsWith("simkl:") -> "simkl=${cleanId.removePrefix("simkl:")}"
+            cleanId.startsWith("imdb:") || cleanId.startsWith("tt") -> "imdb=${cleanId.removePrefix("imdb:")}"
+            cleanId.startsWith("tmdb:") -> "tmdb=${cleanId.removePrefix("tmdb:")}"
+            cleanId.startsWith("mal:") -> "mal=${cleanId.removePrefix("mal:")}"
+            cleanId.all { c -> c.isDigit() } -> "simkl=$cleanId"
             else -> return null
         }
 
-        val clientId = SimklConfig.CLIENT_ID.ifBlank { "6eaf02a9b63b01eb1750cdecf0f05e7d0d8dd949d1eb6894716857947bb68c1a" }
-        val url = "https://api.simkl.com/search/id?$queryParam&client_id=$clientId"
-        val headers = mapOf("Accept" to "application/json")
+        val paramName = queryParam.substringBefore('=')
+        val paramVal = queryParam.substringAfter('=')
+        val url = buildSimklApiUrl("/search/id", mapOf(paramName to paramVal))
+        val headers = simklRequestHeaders(contentTypeJson = false)
 
         return try {
             val response = httpRequestRaw("GET", url, headers, "")
@@ -60,12 +55,14 @@ internal object SimklSearchClient {
             val posterVal = firstObj["poster"]?.jsonPrimitive?.contentOrNull
             val yearVal = firstObj["year"]?.jsonPrimitive?.contentOrNull
                 ?: firstObj["year"]?.jsonPrimitive?.intOrNull?.toString()
+            val totalEps = firstObj["total_episodes"]?.jsonPrimitive?.intOrNull
 
             SimklSearchResultItem(
                 simklId = idVal,
                 title = titleVal,
                 imageUrl = simklPosterUrl(posterVal),
                 year = yearVal,
+                totalEpisodes = totalEps,
             )
         } catch (_: Exception) {
             null
@@ -73,14 +70,15 @@ internal object SimklSearchClient {
     }
 
     suspend fun searchItems(query: String): List<SearchResult> {
-        if (query.isBlank()) return emptyList()
-        val clientId = SimklConfig.CLIENT_ID.ifBlank { "6eaf02a9b63b01eb1750cdecf0f05e7d0d8dd949d1eb6894716857947bb68c1a" }
+        val cleanQuery = query.trim()
+        if (cleanQuery.isBlank()) return emptyList()
 
-        // If query looks like an ID (e.g. tt12345 or digits), try ID lookup first
-        if (query.startsWith("tt") || query.all { c -> c.isDigit() }) {
-            val item = lookupByContentId(query)
+        val results = mutableListOf<SearchResult>()
+
+        if (cleanQuery.startsWith("tt") || cleanQuery.startsWith("imdb:") || cleanQuery.startsWith("tmdb:") || cleanQuery.all { c -> c.isDigit() }) {
+            val item = lookupByContentId(cleanQuery)
             if (item != null) {
-                return listOf(
+                results.add(
                     SearchResult(
                         id = item.simklId.toIntOrNull() ?: 0,
                         title = item.title,
@@ -91,13 +89,11 @@ internal object SimklSearchClient {
             }
         }
 
-        val encodedQuery = query.encodeURLParameter()
-        val headers = mapOf("Accept" to "application/json")
-        val results = mutableListOf<SearchResult>()
+        val endpoints = listOf("tv", "anime", "movie")
+        val headers = simklRequestHeaders(contentTypeJson = false)
 
-        val endpoints = listOf("anime", "tv", "movies")
         for (endpoint in endpoints) {
-            val url = "https://api.simkl.com/search/$endpoint?q=$encodedQuery&client_id=$clientId&limit=10"
+            val url = buildSimklApiUrl("/search/$endpoint", mapOf("q" to cleanQuery, "limit" to "10"))
             try {
                 val response = httpRequestRaw("GET", url, headers, "")
                 if (response.status in 200..299 && response.body.isNotBlank()) {
@@ -136,17 +132,12 @@ internal object SimklSearchClient {
         score: Int?,
         progress: Int?,
     ): Boolean {
-        val clientId = SimklConfig.CLIENT_ID.ifBlank { "6eaf02a9b63b01eb1750cdecf0f05e7d0d8dd949d1eb6894716857947bb68c1a" }
-        val headers = mapOf(
-            "Authorization" to "Bearer $accessToken",
-            "simkl-api-key" to clientId,
-            "Content-Type" to "application/json",
-            "Accept" to "application/json",
-        )
         val idInt = simklId.toIntOrNull() ?: return false
+        val headers = simklRequestHeaders(accessToken, contentTypeJson = true)
         var success = true
 
         if (!status.isNullOrBlank()) {
+            val url = buildSimklApiUrl("/sync/add-to-list")
             val listBody = """
                 {
                   "shows": [{"ids": {"simkl": $idInt}, "to": "$status"}],
@@ -155,12 +146,13 @@ internal object SimklSearchClient {
                 }
             """.trimIndent()
             runCatching {
-                val res = httpRequestRaw("POST", "https://api.simkl.com/sync/add-to-list", headers, listBody)
+                val res = httpRequestRaw("POST", url, headers, listBody)
                 success = success && (res.status in 200..299)
             }
         }
 
         if (score != null && score > 0) {
+            val url = buildSimklApiUrl("/sync/ratings")
             val ratingBody = """
                 {
                   "shows": [{"ids": {"simkl": $idInt}, "rating": $score}],
@@ -169,12 +161,13 @@ internal object SimklSearchClient {
                 }
             """.trimIndent()
             runCatching {
-                val res = httpRequestRaw("POST", "https://api.simkl.com/sync/ratings", headers, ratingBody)
+                val res = httpRequestRaw("POST", url, headers, ratingBody)
                 success = success && (res.status in 200..299)
             }
         }
 
         if (progress != null && progress > 0) {
+            val url = buildSimklApiUrl("/sync/history")
             val epList = (1..progress).joinToString(",") { """{"number": $it}""" }
             val historyBody = """
                 {
@@ -183,7 +176,7 @@ internal object SimklSearchClient {
                 }
             """.trimIndent()
             runCatching {
-                val res = httpRequestRaw("POST", "https://api.simkl.com/sync/history", headers, historyBody)
+                val res = httpRequestRaw("POST", url, headers, historyBody)
                 success = success && (res.status in 200..299)
             }
         }

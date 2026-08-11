@@ -290,7 +290,7 @@ internal fun AnimeTrackerSheet(
             }
         }
 
-        // EaZy Nuvio+ Start — Automatic Simkl Lookup
+        // EaZy Nuvio+ Start — Automatic Simkl Lookup & Data Population
         val simklJob = launch {
             val savedSimkl = AnimeTrackerMappingStorage.getSimklOverride(contentId)
             if (savedSimkl == "UNTRACKED") {
@@ -317,12 +317,20 @@ internal fun AnimeTrackerSheet(
                     }
                     simklScore = (localMatch.userRating ?: 0).toFloat()
                     simklProgress = localMatch.watchedEpisodesCount.toFloat()
+                    if (localMatch.totalEpisodesCount > 0) {
+                        maxEpisodes = localMatch.totalEpisodesCount
+                    } else if (localMatch.isMovieEntry()) {
+                        maxEpisodes = 1
+                    }
                 } else {
                     val lookupRes = com.nuvio.app.features.simkl.SimklSearchClient.lookupByContentId(targetId)
                     if (lookupRes != null) {
                         simklId = lookupRes.simklId
                         simklTitle = lookupRes.title
                         simklImageUrl = lookupRes.imageUrl
+                        if (lookupRes.totalEpisodes != null && lookupRes.totalEpisodes > 0) {
+                            maxEpisodes = lookupRes.totalEpisodes
+                        }
                     }
                 }
             }
@@ -1059,10 +1067,11 @@ internal fun AnimeTrackerSheet(
                                         ) {
                                             Icon(Icons.Default.Remove, contentDescription = "-1", tint = TextPrimary)
                                         }
+                                        val maxSimklVal = if (maxEpisodes > 0 && maxEpisodes != 2000) maxEpisodes.toFloat() else 500f
                                         Slider(
-                                            value = simklProgress,
-                                            onValueChange = { simklProgress = it },
-                                            valueRange = 0f..(if (maxEpisodes > 0 && maxEpisodes != 2000) maxEpisodes.toFloat() else 500f),
+                                            value = simklProgress.coerceIn(0f, maxSimklVal),
+                                            onValueChange = { simklProgress = it.roundToInt().toFloat() },
+                                            valueRange = 0f..maxSimklVal,
                                             modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                                             colors = SliderDefaults.colors(thumbColor = simklBrandColor, activeTrackColor = simklBrandColor)
                                         )

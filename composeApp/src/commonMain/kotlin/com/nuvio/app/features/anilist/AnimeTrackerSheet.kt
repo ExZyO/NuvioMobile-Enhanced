@@ -997,158 +997,6 @@ internal fun AnimeTrackerSheet(
 
 
 
-                    // Dates & Rewatches Card (only if AniList or MAL is tracking something)
-                    if ((aniListState.mode == AniListConnectionMode.CONNECTED && aniListId != null) ||
-                        (malState.mode == MalConnectionMode.CONNECTED && malId != null)) {
-                        ProSectionCard {
-                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                Text("Dates & Notes (AniList & MAL)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
-
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedButton(
-                                        onClick = { showStartDatePicker = true },
-                                        modifier = Modifier.weight(1f).height(46.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(containerColor = OledSheetBg, contentColor = TextPrimary),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, OledCardBorder),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp), tint = PrimaryAccent)
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(if (startDateMillis != null) Instant.fromEpochMilliseconds(startDateMillis!!).toLocalDateTime(TimeZone.UTC).date.toString() else "Start Date", fontSize = MaterialTheme.typography.bodySmall.fontSize)
-                                    }
-                                    OutlinedButton(
-                                        onClick = { showFinishDatePicker = true },
-                                        modifier = Modifier.weight(1f).height(46.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(containerColor = OledSheetBg, contentColor = TextPrimary),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, OledCardBorder),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp), tint = PrimaryAccent)
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(if (finishDateMillis != null) Instant.fromEpochMilliseconds(finishDateMillis!!).toLocalDateTime(TimeZone.UTC).date.toString() else "Finish Date", fontSize = MaterialTheme.typography.bodySmall.fontSize)
-                                    }
-                                }
-
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                    Text("Total Rewatches", style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.weight(1f))
-                                    IconButton(onClick = { if (totalRewatches > 0) totalRewatches-- }, modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).background(OledSheetBg)) {
-                                        Icon(Icons.Default.Remove, contentDescription = "-", tint = TextPrimary)
-                                    }
-                                    Text("$totalRewatches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary, modifier = Modifier.padding(horizontal = 12.dp))
-                                    IconButton(onClick = { totalRewatches++ }, modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).background(OledSheetBg)) {
-                                        Icon(Icons.Default.Add, contentDescription = "+", tint = TextPrimary)
-                                    }
-                                }
-
-                                OutlinedTextField(
-                                    value = notes,
-                                    onValueChange = { notes = it },
-                                    label = { Text("Notes", color = TextSecondary) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    maxLines = 3,
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = OledSheetBg,
-                                        unfocusedContainerColor = OledSheetBg,
-                                        focusedBorderColor = PrimaryAccent,
-                                        unfocusedBorderColor = OledCardBorder,
-                                        focusedTextColor = TextPrimary,
-                                        unfocusedTextColor = TextPrimary
-                                    )
-                                )
-                            }
-                        }
-
-                        // AniList Advanced Accordion
-                        if (aniListId != null && aniListState.mode == AniListConnectionMode.CONNECTED) {
-                            var anilistExpanded by remember { mutableStateOf(false) }
-                            ProSectionCard(modifier = Modifier.clickable { anilistExpanded = !anilistExpanded }) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                        Text("AniList Advanced Options", style = MaterialTheme.typography.titleSmall, color = TextPrimary, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.weight(1f))
-                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = TextSecondary)
-                                    }
-                                    if (anilistExpanded) {
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            FilterChip(
-                                                selected = isPrivate,
-                                                onClick = { isPrivate = !isPrivate },
-                                                label = { Text("Private") }
-                                            )
-                                            FilterChip(
-                                                selected = hideFromStatusLists,
-                                                onClick = { hideFromStatusLists = !hideFromStatusLists },
-                                                label = { Text("Hide from status lists") }
-                                            )
-                                        }
-
-                                        if (aniListState.advancedScoringEnabled) {
-                                            val scoreItems = listOf(
-                                                "Story" to storyScore,
-                                                "Characters" to charScore,
-                                                "Visuals" to visualScore,
-                                                "Audio" to audioScore,
-                                                "Enjoyment" to enjoymentScore
-                                            )
-                                            scoreItems.forEachIndexed { i, (label, value) ->
-                                                val v = (value * 10).roundToInt()
-                                                val displayVal = "${v / 10}.${v % 10}"
-                                                Text("$label: ${if(value == 0f) "Unrated" else displayVal}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                                                Slider(
-                                                    value = value,
-                                                    onValueChange = {
-                                                        when(i) {
-                                                            0 -> storyScore = it
-                                                            1 -> charScore = it
-                                                            2 -> visualScore = it
-                                                            3 -> audioScore = it
-                                                            4 -> enjoymentScore = it
-                                                        }
-                                                    },
-                                                    valueRange = 0f..10f,
-                                                    steps = 99,
-                                                    colors = SliderDefaults.colors(thumbColor = AniListBrandColor, activeTrackColor = AniListBrandColor)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // MAL Advanced Accordion
-                        if (malId != null && malState.mode == MalConnectionMode.CONNECTED) {
-                            var malExpanded by remember { mutableStateOf(false) }
-                            ProSectionCard(modifier = Modifier.clickable { malExpanded = !malExpanded }) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                        Text("MyAnimeList Advanced Options", style = MaterialTheme.typography.titleSmall, color = TextPrimary, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.weight(1f))
-                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = TextSecondary)
-                                    }
-                                    if (malExpanded) {
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        Text("Priority", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            listOf("Low", "Medium", "High").forEachIndexed { i, p ->
-                                                FilterChip(selected = priority == i, onClick = { priority = i }, label = { Text(p) })
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text("Rewatch Value", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            listOf("Very Low", "Low", "Medium", "High", "Very High").forEachIndexed { i, p ->
-                                                FilterChip(selected = rewatchValue == i + 1, onClick = { rewatchValue = i + 1 }, label = { Text(p) })
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
                         // EaZy Nuvio+ Start — Simkl Section Card
                         if (simklId != null && simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
                             val simklBrandColor = Color(0xFF00C755)
@@ -1248,6 +1096,160 @@ internal fun AnimeTrackerSheet(
                             }
                         }
                         // EaZy Nuvio+ End
+
+                        // Dates & Rewatches Card (if AniList, MAL, or Simkl is tracking something)
+                        if ((aniListState.mode == AniListConnectionMode.CONNECTED && aniListId != null) ||
+                            (malState.mode == MalConnectionMode.CONNECTED && malId != null) ||
+                            (simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED && simklId != null)) {
+                            ProSectionCard {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                    Text("Dates & Notes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedButton(
+                                            onClick = { showStartDatePicker = true },
+                                            modifier = Modifier.weight(1f).height(46.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(containerColor = OledSheetBg, contentColor = TextPrimary),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, OledCardBorder),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ) {
+                                            Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp), tint = PrimaryAccent)
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(if (startDateMillis != null) Instant.fromEpochMilliseconds(startDateMillis!!).toLocalDateTime(TimeZone.UTC).date.toString() else "Start Date", fontSize = MaterialTheme.typography.bodySmall.fontSize)
+                                        }
+                                        OutlinedButton(
+                                            onClick = { showFinishDatePicker = true },
+                                            modifier = Modifier.weight(1f).height(46.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(containerColor = OledSheetBg, contentColor = TextPrimary),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, OledCardBorder),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ) {
+                                            Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp), tint = PrimaryAccent)
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(if (finishDateMillis != null) Instant.fromEpochMilliseconds(finishDateMillis!!).toLocalDateTime(TimeZone.UTC).date.toString() else "Finish Date", fontSize = MaterialTheme.typography.bodySmall.fontSize)
+                                        }
+                                    }
+
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                        Text("Total Rewatches", style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.weight(1f))
+                                        IconButton(onClick = { if (totalRewatches > 0) totalRewatches-- }, modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).background(OledSheetBg)) {
+                                            Icon(Icons.Default.Remove, contentDescription = "-", tint = TextPrimary)
+                                        }
+                                        Text("$totalRewatches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary, modifier = Modifier.padding(horizontal = 12.dp))
+                                        IconButton(onClick = { totalRewatches++ }, modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).background(OledSheetBg)) {
+                                            Icon(Icons.Default.Add, contentDescription = "+", tint = TextPrimary)
+                                        }
+                                    }
+
+                                    OutlinedTextField(
+                                        value = notes,
+                                        onValueChange = { notes = it },
+                                        label = { Text("Notes", color = TextSecondary) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        maxLines = 3,
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = OledSheetBg,
+                                            unfocusedContainerColor = OledSheetBg,
+                                            focusedBorderColor = PrimaryAccent,
+                                            unfocusedBorderColor = OledCardBorder,
+                                            focusedTextColor = TextPrimary,
+                                            unfocusedTextColor = TextPrimary
+                                        )
+                                    )
+                                }
+                            }
+
+                            // AniList Advanced Accordion
+                            if (aniListId != null && aniListState.mode == AniListConnectionMode.CONNECTED) {
+                                var anilistExpanded by remember { mutableStateOf(false) }
+                                ProSectionCard(modifier = Modifier.clickable { anilistExpanded = !anilistExpanded }) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                            Text("AniList Advanced Options", style = MaterialTheme.typography.titleSmall, color = TextPrimary, fontWeight = FontWeight.Bold)
+                                            Spacer(modifier = Modifier.weight(1f))
+                                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = TextSecondary)
+                                        }
+                                        if (anilistExpanded) {
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                FilterChip(
+                                                    selected = isPrivate,
+                                                    onClick = { isPrivate = !isPrivate },
+                                                    label = { Text("Private") }
+                                                )
+                                                FilterChip(
+                                                    selected = hideFromStatusLists,
+                                                    onClick = { hideFromStatusLists = !hideFromStatusLists },
+                                                    label = { Text("Hide from status lists") }
+                                                )
+                                            }
+
+                                            if (aniListState.advancedScoringEnabled) {
+                                                val scoreItems = listOf(
+                                                    "Story" to storyScore,
+                                                    "Characters" to charScore,
+                                                    "Visuals" to visualScore,
+                                                    "Audio" to audioScore,
+                                                    "Enjoyment" to enjoymentScore
+                                                )
+                                                scoreItems.forEachIndexed { i, (label, value) ->
+                                                    val v = (value * 10).roundToInt()
+                                                    val displayVal = "${v / 10}.${v % 10}"
+                                                    Text("$label: ${if(value == 0f) "Unrated" else displayVal}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                                    Slider(
+                                                        value = value,
+                                                        onValueChange = {
+                                                            when(i) {
+                                                                0 -> storyScore = it
+                                                                1 -> charScore = it
+                                                                2 -> visualScore = it
+                                                                3 -> audioScore = it
+                                                                4 -> enjoymentScore = it
+                                                            }
+                                                        },
+                                                        valueRange = 0f..10f,
+                                                        steps = 99,
+                                                        colors = SliderDefaults.colors(thumbColor = AniListBrandColor, activeTrackColor = AniListBrandColor)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // MAL Advanced Accordion
+                            if (malId != null && malState.mode == MalConnectionMode.CONNECTED) {
+                                var malExpanded by remember { mutableStateOf(false) }
+                                ProSectionCard(modifier = Modifier.clickable { malExpanded = !malExpanded }) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                            Text("MyAnimeList Advanced Options", style = MaterialTheme.typography.titleSmall, color = TextPrimary, fontWeight = FontWeight.Bold)
+                                            Spacer(modifier = Modifier.weight(1f))
+                                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = TextSecondary)
+                                        }
+                                        if (malExpanded) {
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Text("Priority", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                listOf("Low", "Medium", "High").forEachIndexed { i, p ->
+                                                    FilterChip(selected = priority == i, onClick = { priority = i }, label = { Text(p) })
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text("Rewatch Value", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                listOf("Very Low", "Low", "Medium", "High", "Very High").forEachIndexed { i, p ->
+                                                    FilterChip(selected = rewatchValue == i + 1, onClick = { rewatchValue = i + 1 }, label = { Text(p) })
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -1365,7 +1367,6 @@ internal fun AnimeTrackerSheet(
                 }
             }
         }
-    }
 
 @Composable
 private fun ProSectionCard(

@@ -250,6 +250,8 @@ internal fun AnimeTrackerSheet(
 
                         val newProgMal = (entry.progress ?: 0).toFloat()
                         malProgress = newProgMal
+                        priority = entry.priority ?: 0 // EaZy Nuvio+
+                        rewatchValue = entry.rewatchValue ?: 0 // EaZy Nuvio+
 
                         if (!isUiInitialized) {
                             totalRewatches = entry.numTimesRewatched ?: 0

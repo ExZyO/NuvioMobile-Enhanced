@@ -1,10 +1,11 @@
 package com.nuvio.app.features.simkl
 
-// EaZy Nuvio+ Start — Simkl ID lookup, search, and progress save client
+// EaZy Nuvio+ Start — Simkl ID lookup, search, memo, and progress save client
 import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.anilist.SearchResult
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
@@ -19,6 +20,11 @@ internal object SimklSearchClient {
         val imageUrl: String?,
         val year: String? = null,
         val totalEpisodes: Int? = null,
+        val userRating: Int? = null,
+        val status: String? = null,
+        val watchedEpisodes: Int? = null,
+        val memo: String? = null,
+        val isMemoPrivate: Boolean = false,
     )
 
     suspend fun lookupByContentId(contentId: String): SimklSearchResultItem? {
@@ -56,6 +62,21 @@ internal object SimklSearchClient {
             val yearVal = firstObj["year"]?.jsonPrimitive?.contentOrNull
                 ?: firstObj["year"]?.jsonPrimitive?.intOrNull?.toString()
             val totalEps = firstObj["total_episodes"]?.jsonPrimitive?.intOrNull
+            val userRating = firstObj["user_rating"]?.jsonPrimitive?.intOrNull
+            val rawStatus = firstObj["status"]?.jsonPrimitive?.contentOrNull
+            val watchedEps = firstObj["watched_episodes_count"]?.jsonPrimitive?.intOrNull
+            val memoText = firstObj["memo"]?.jsonPrimitive?.contentOrNull
+            val isMemoPrivate = firstObj["memo_private"]?.jsonPrimitive?.booleanOrNull
+                ?: firstObj["is_memo_private"]?.jsonPrimitive?.booleanOrNull ?: false
+
+            val statusVal = when (rawStatus?.lowercase()) {
+                "watching" -> "Watching"
+                "completed" -> "Completed"
+                "hold", "on_hold" -> "On Hold"
+                "dropped" -> "Dropped"
+                "plantowatch", "plan_to_watch" -> "Plan to Watch"
+                else -> null
+            }
 
             SimklSearchResultItem(
                 simklId = idVal,
@@ -63,6 +84,11 @@ internal object SimklSearchClient {
                 imageUrl = simklPosterUrl(posterVal),
                 year = yearVal,
                 totalEpisodes = totalEps,
+                userRating = userRating,
+                status = statusVal,
+                watchedEpisodes = watchedEps,
+                memo = memoText,
+                isMemoPrivate = isMemoPrivate,
             )
         } catch (_: Exception) {
             null
@@ -89,9 +115,40 @@ internal object SimklSearchClient {
             }
         }
 
-        val endpoints = listOf("tv", "anime", "movie")
         val headers = simklRequestHeaders(contentTypeJson = false)
 
+        // Try /search/id?q=... first for all media types
+        try {
+            val idUrl = buildSimklApiUrl("/search/id", mapOf("q" to cleanQuery, "limit" to "10"))
+            val response = httpRequestRaw("GET", idUrl, headers, "")
+            if (response.status in 200..299 && response.body.isNotBlank()) {
+                val array = json.parseToJsonElement(response.body) as? JsonArray
+                if (array != null) {
+                    for (element in array) {
+                        val obj = element.jsonObject
+                        val idsObj = obj["ids"]?.jsonObject
+                        val simklId = idsObj?.get("simkl")?.jsonPrimitive?.intOrNull
+                            ?: obj["simkl"]?.jsonPrimitive?.intOrNull ?: continue
+                        val title = obj["title"]?.jsonPrimitive?.contentOrNull ?: continue
+                        val poster = obj["poster"]?.jsonPrimitive?.contentOrNull
+                        val year = obj["year"]?.jsonPrimitive?.contentOrNull
+                            ?: obj["year"]?.jsonPrimitive?.intOrNull?.toString()
+                        val typeStr = obj["type"]?.jsonPrimitive?.contentOrNull
+
+                        results.add(
+                            SearchResult(
+                                id = simklId,
+                                title = title,
+                                imageUrl = simklPosterUrl(poster),
+                                type = year ?: typeStr?.uppercase(),
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        val endpoints = listOf("tv", "anime", "movie")
         for (endpoint in endpoints) {
             val url = buildSimklApiUrl("/search/$endpoint", mapOf("q" to cleanQuery, "limit" to "10"))
             try {
@@ -131,18 +188,22 @@ internal object SimklSearchClient {
         status: String?,
         score: Int?,
         progress: Int?,
+        memo: String? = null,
+        isPrivate: Boolean = false,
     ): Boolean {
         val idInt = simklId.toIntOrNull() ?: return false
         val headers = simklRequestHeaders(accessToken, contentTypeJson = true)
         var success = true
 
-        if (!status.isNullOrBlank()) {
+        if (!status.isNullOrBlank() || !memo.isNullOrBlank()) {
             val url = buildSimklApiUrl("/sync/add-to-list")
+            val statusStr = status ?: "watching"
+            val memoEscaped = (memo ?: "").replace("\"", "\\\"").replace("\n", "\\n")
             val listBody = """
                 {
-                  "shows": [{"ids": {"simkl": $idInt}, "to": "$status"}],
-                  "movies": [{"ids": {"simkl": $idInt}, "to": "$status"}],
-                  "anime": [{"ids": {"simkl": $idInt}, "to": "$status"}]
+                  "shows": [{"ids": {"simkl": $idInt}, "to": "$statusStr", "memo": "$memoEscaped", "memo_private": $isPrivate}],
+                  "movies": [{"ids": {"simkl": $idInt}, "to": "$statusStr", "memo": "$memoEscaped", "memo_private": $isPrivate}],
+                  "anime": [{"ids": {"simkl": $idInt}, "to": "$statusStr", "memo": "$memoEscaped", "memo_private": $isPrivate}]
                 }
             """.trimIndent()
             runCatching {

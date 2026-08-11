@@ -123,6 +123,8 @@ internal fun AnimeTrackerSheet(
     val simklStatuses = listOf("Watching", "Plan to Watch", "Completed", "On Hold", "Dropped")
     var simklScore by remember { mutableStateOf(0f) }
     var simklProgress by remember { mutableStateOf(0f) }
+    var simklMemo by remember { mutableStateOf("") }
+    var isPrivateMemo by remember { mutableStateOf(false) }
     // EaZy Nuvio+ End
 
     var aniListStatusExpanded by remember { mutableStateOf(false) }
@@ -307,16 +309,18 @@ internal fun AnimeTrackerSheet(
                     simklId = media.ids.simklIdValue()
                     simklTitle = media.title ?: title
                     simklImageUrl = com.nuvio.app.features.simkl.simklPosterUrl(media.poster)
-                    simklStatus = when (localMatch.status?.apiValue) {
-                        "watching" -> "Watching"
-                        "plantowatch" -> "Plan to Watch"
-                        "completed" -> "Completed"
-                        "hold" -> "On Hold"
-                        "dropped" -> "Dropped"
+                    simklStatus = when (localMatch.status) {
+                        com.nuvio.app.features.simkl.SimklListStatus.WATCHING -> "Watching"
+                        com.nuvio.app.features.simkl.SimklListStatus.PLAN_TO_WATCH -> "Plan to Watch"
+                        com.nuvio.app.features.simkl.SimklListStatus.COMPLETED -> "Completed"
+                        com.nuvio.app.features.simkl.SimklListStatus.ON_HOLD -> "On Hold"
+                        com.nuvio.app.features.simkl.SimklListStatus.DROPPED -> "Dropped"
                         else -> "Watching"
                     }
                     simklScore = (localMatch.userRating ?: 0).toFloat()
                     simklProgress = localMatch.watchedEpisodesCount.toFloat()
+                    simklMemo = localMatch.memo ?: ""
+                    isPrivateMemo = localMatch.memoPrivate
                     if (localMatch.totalEpisodesCount > 0) {
                         maxEpisodes = localMatch.totalEpisodesCount
                     } else if (localMatch.isMovieEntry()) {
@@ -328,6 +332,19 @@ internal fun AnimeTrackerSheet(
                         simklId = lookupRes.simklId
                         simklTitle = lookupRes.title
                         simklImageUrl = lookupRes.imageUrl
+                        if (lookupRes.userRating != null && lookupRes.userRating > 0) {
+                            simklScore = lookupRes.userRating.toFloat()
+                        }
+                        if (!lookupRes.status.isNullOrBlank()) {
+                            simklStatus = lookupRes.status
+                        }
+                        if (lookupRes.watchedEpisodes != null) {
+                            simklProgress = lookupRes.watchedEpisodes.toFloat()
+                        }
+                        if (!lookupRes.memo.isNullOrBlank()) {
+                            simklMemo = lookupRes.memo
+                        }
+                        isPrivateMemo = lookupRes.isMemoPrivate
                         if (lookupRes.totalEpisodes != null && lookupRes.totalEpisodes > 0) {
                             maxEpisodes = lookupRes.totalEpisodes
                         }
@@ -1012,6 +1029,20 @@ internal fun AnimeTrackerSheet(
                                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                         Text("Simkl Tracking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = simklBrandColor)
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        TextButton(
+                                            onClick = {
+                                                simklId = null
+                                                simklTitle = null
+                                                simklImageUrl = null
+                                                scope.launch {
+                                                    AnimeTrackerMappingStorage.saveSimklOverride(contentId, "UNTRACKED")
+                                                }
+                                            },
+                                            colors = ButtonDefaults.textButtonColors(contentColor = TextSecondary)
+                                        ) {
+                                            Text("Untrack")
+                                        }
                                     }
 
                                     Text("Status", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
@@ -1039,7 +1070,7 @@ internal fun AnimeTrackerSheet(
                                                     text = { Text(s) },
                                                     onClick = {
                                                         simklStatus = s
-                                                        if (s == "Completed" && maxEpisodes < 2000) {
+                                                        if (s == "Completed" && maxEpisodes < 2000 && maxEpisodes > 0) {
                                                             simklProgress = maxEpisodes.toFloat()
                                                         }
                                                         simklStatusExpanded = false
@@ -1049,9 +1080,9 @@ internal fun AnimeTrackerSheet(
                                         }
                                     }
 
-                                    // Progress Controls
+                                    // Watched Episodes Controls
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                        Text("Progress", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                                        Text("Watched Episodes", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
                                         Spacer(modifier = Modifier.weight(1f))
                                         Text(
                                             text = "${simklProgress.roundToInt()} / ${if (maxEpisodes > 0 && maxEpisodes != 2000) maxEpisodes else "?"}",
@@ -1063,7 +1094,7 @@ internal fun AnimeTrackerSheet(
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                         IconButton(
                                             onClick = { if (simklProgress > 0) simklProgress -= 1f },
-                                            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(10.dp)).background(OledSheetBg)
+                                            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(OledSheetBg)
                                         ) {
                                             Icon(Icons.Default.Remove, contentDescription = "-1", tint = TextPrimary)
                                         }
@@ -1076,40 +1107,85 @@ internal fun AnimeTrackerSheet(
                                             colors = SliderDefaults.colors(thumbColor = simklBrandColor, activeTrackColor = simklBrandColor)
                                         )
                                         IconButton(
-                                            onClick = { simklProgress += 1f },
-                                            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(10.dp)).background(OledSheetBg)
+                                            onClick = { if (simklProgress < maxSimklVal) simklProgress += 1f },
+                                            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(OledSheetBg)
                                         ) {
                                             Icon(Icons.Default.Add, contentDescription = "+1", tint = TextPrimary)
                                         }
                                     }
 
-                                    // Score Slider
+                                    // Rating Controls
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                        Text("Score", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                                        Text("Rating (1-10)", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
                                         Spacer(modifier = Modifier.weight(1f))
                                         Text(
-                                            text = if (simklScore > 0f) "${simklScore.roundToInt()} / 10 ★" else "Unrated",
+                                            text = if (simklScore == 0f) "Unrated" else "${simklScore.roundToInt()} / 10",
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFFFFD700)
+                                            color = simklBrandColor
                                         )
                                     }
                                     Slider(
-                                        value = simklScore,
-                                        onValueChange = { simklScore = it },
+                                        value = simklScore.coerceIn(0f, 10f),
+                                        onValueChange = { simklScore = it.roundToInt().toFloat() },
                                         valueRange = 0f..10f,
                                         steps = 9,
-                                        colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
+                                        colors = SliderDefaults.colors(thumbColor = simklBrandColor, activeTrackColor = simklBrandColor)
                                     )
+
+                                    // Simkl Memo / Note Section
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text("Simkl Memo / Note", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+
+                                        OutlinedTextField(
+                                            value = simklMemo,
+                                            onValueChange = { newMemo ->
+                                                if (newMemo.length <= 140) {
+                                                    simklMemo = newMemo
+                                                }
+                                            },
+                                            placeholder = { Text("Add personal note (max 140 chars)", color = TextSecondary) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            maxLines = 3,
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedContainerColor = OledSheetBg,
+                                                unfocusedContainerColor = OledSheetBg,
+                                                focusedBorderColor = simklBrandColor,
+                                                unfocusedBorderColor = OledCardBorder,
+                                                focusedTextColor = TextPrimary,
+                                                unfocusedTextColor = TextPrimary
+                                            )
+                                        )
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            FilterChip(
+                                                selected = isPrivateMemo,
+                                                onClick = { isPrivateMemo = !isPrivateMemo },
+                                                label = { Text(if (isPrivateMemo) "Private Memo" else "Public Memo") },
+                                                colors = FilterChipDefaults.filterChipColors(
+                                                    selectedContainerColor = simklBrandColor.copy(alpha = 0.2f),
+                                                    selectedLabelColor = simklBrandColor,
+                                                    containerColor = OledSheetBg,
+                                                    labelColor = TextSecondary
+                                                )
+                                            )
+                                            Spacer(modifier = Modifier.weight(1f))
+                                            Text(
+                                                text = "${simklMemo.length} / 140",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = TextSecondary
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
                         // EaZy Nuvio+ End
 
-                        // Dates & Rewatches Card (if AniList, MAL, or Simkl is tracking something)
+                        // Dates & Rewatches Card (if AniList or MAL is tracking something)
                         if ((aniListState.mode == AniListConnectionMode.CONNECTED && aniListId != null) ||
-                            (malState.mode == MalConnectionMode.CONNECTED && malId != null) ||
-                            (simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED && simklId != null)) {
+                            (malState.mode == MalConnectionMode.CONNECTED && malId != null)) {
                             ProSectionCard {
                                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                                     Text("Dates & Notes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
@@ -1356,7 +1432,9 @@ internal fun AnimeTrackerSheet(
                                                 simklId = currentSimklId,
                                                 status = simklStatusString,
                                                 score = if (simklScore > 0f) simklScore.roundToInt() else null,
-                                                progress = simklProgress.roundToInt()
+                                                progress = simklProgress.roundToInt(),
+                                                memo = simklMemo,
+                                                isPrivate = isPrivateMemo
                                             )
                                             com.nuvio.app.features.simkl.SimklSyncRepository.refreshAsync(
                                                 com.nuvio.app.features.tracking.TrackingRefreshIntent.USER_INITIATED

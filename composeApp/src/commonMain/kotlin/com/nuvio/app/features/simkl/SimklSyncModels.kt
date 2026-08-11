@@ -69,6 +69,8 @@ data class SimklLibraryEntry(
     @SerialName("watched_episodes_count") val watchedEpisodesCount: Int = 0,
     @SerialName("total_episodes_count") val totalEpisodesCount: Int = 0,
     @SerialName("not_aired_episodes_count") val notAiredEpisodesCount: Int = 0,
+    val memo: String? = null,
+    @SerialName("memo_private") val memoPrivate: Boolean = false,
     val show: SimklMedia? = null,
     val movie: SimklMedia? = null,
     @SerialName("anime_type") val animeType: String? = null,

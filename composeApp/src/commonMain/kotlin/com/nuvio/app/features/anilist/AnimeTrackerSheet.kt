@@ -117,6 +117,14 @@ internal fun AnimeTrackerSheet(
     var simklTitle by remember { mutableStateOf<String?>(null) }
     var simklImageUrl by remember { mutableStateOf<String?>(null) }
 
+    // EaZy Nuvio+ Start — Simkl Tracking Options State
+    var simklStatus by remember { mutableStateOf("Watching") }
+    var simklStatusExpanded by remember { mutableStateOf(false) }
+    val simklStatuses = listOf("Watching", "Plan to Watch", "Completed", "On Hold", "Dropped")
+    var simklScore by remember { mutableStateOf(0f) }
+    var simklProgress by remember { mutableStateOf(0f) }
+    // EaZy Nuvio+ End
+
     var aniListStatusExpanded by remember { mutableStateOf(false) }
     var malStatusExpanded by remember { mutableStateOf(false) }
     val aniListStatuses = listOf("Watching", "Plan to Watch", "Completed", "Rewatching", "Paused", "Dropped")
@@ -299,6 +307,16 @@ internal fun AnimeTrackerSheet(
                     simklId = media.ids.simklIdValue()
                     simklTitle = media.title ?: title
                     simklImageUrl = com.nuvio.app.features.simkl.simklPosterUrl(media.poster)
+                    simklStatus = when (localMatch.status?.apiValue) {
+                        "watching" -> "Watching"
+                        "plantowatch" -> "Plan to Watch"
+                        "completed" -> "Completed"
+                        "hold" -> "On Hold"
+                        "dropped" -> "Dropped"
+                        else -> "Watching"
+                    }
+                    simklScore = (localMatch.userRating ?: 0).toFloat()
+                    simklProgress = localMatch.watchedEpisodesCount.toFloat()
                 } else {
                     val lookupRes = com.nuvio.app.features.simkl.SimklSearchClient.lookupByContentId(targetId)
                     if (lookupRes != null) {
@@ -1131,6 +1149,106 @@ internal fun AnimeTrackerSheet(
                             }
                         }
 
+                        // EaZy Nuvio+ Start — Simkl Section Card
+                        if (simklId != null && simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
+                            val simklBrandColor = Color(0xFF00C755)
+                            ProSectionCard {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                        Text("Simkl Tracking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = simklBrandColor)
+                                    }
+
+                                    Text("Status", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                                    Box {
+                                        OutlinedButton(
+                                            onClick = { simklStatusExpanded = true },
+                                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                containerColor = OledSheetBg,
+                                                contentColor = TextPrimary
+                                            ),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, OledCardBorder),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ) {
+                                            Text(simklStatus, fontWeight = FontWeight.Medium)
+                                            Spacer(modifier = Modifier.weight(1f))
+                                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = TextSecondary)
+                                        }
+                                        DropdownMenu(
+                                            expanded = simklStatusExpanded,
+                                            onDismissRequest = { simklStatusExpanded = false }
+                                        ) {
+                                            simklStatuses.forEach { s ->
+                                                DropdownMenuItem(
+                                                    text = { Text(s) },
+                                                    onClick = {
+                                                        simklStatus = s
+                                                        if (s == "Completed" && maxEpisodes < 2000) {
+                                                            simklProgress = maxEpisodes.toFloat()
+                                                        }
+                                                        simklStatusExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Progress Controls
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                        Text("Progress", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        Text(
+                                            text = "${simklProgress.roundToInt()} / ${if (maxEpisodes > 0 && maxEpisodes != 2000) maxEpisodes else "?"}",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = simklBrandColor
+                                        )
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                        IconButton(
+                                            onClick = { if (simklProgress > 0) simklProgress -= 1f },
+                                            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(10.dp)).background(OledSheetBg)
+                                        ) {
+                                            Icon(Icons.Default.Remove, contentDescription = "-1", tint = TextPrimary)
+                                        }
+                                        Slider(
+                                            value = simklProgress,
+                                            onValueChange = { simklProgress = it },
+                                            valueRange = 0f..(if (maxEpisodes > 0 && maxEpisodes != 2000) maxEpisodes.toFloat() else 500f),
+                                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                                            colors = SliderDefaults.colors(thumbColor = simklBrandColor, activeTrackColor = simklBrandColor)
+                                        )
+                                        IconButton(
+                                            onClick = { simklProgress += 1f },
+                                            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(10.dp)).background(OledSheetBg)
+                                        ) {
+                                            Icon(Icons.Default.Add, contentDescription = "+1", tint = TextPrimary)
+                                        }
+                                    }
+
+                                    // Score Slider
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                        Text("Score", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        Text(
+                                            text = if (simklScore > 0f) "${simklScore.roundToInt()} / 10 ★" else "Unrated",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFFFD700)
+                                        )
+                                    }
+                                    Slider(
+                                        value = simklScore,
+                                        onValueChange = { simklScore = it },
+                                        valueRange = 0f..10f,
+                                        steps = 9,
+                                        colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
+                                    )
+                                }
+                            }
+                        }
+                        // EaZy Nuvio+ End
+
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
@@ -1141,6 +1259,7 @@ internal fun AnimeTrackerSheet(
                     onClick = {
                         val currentAniId = aniListId
                         val currentMalId = malId
+                        val currentSimklId = simklId
                         onDismiss()
                         CoroutineScope(Dispatchers.Default).launch {
                             val startLd = startDateMillis?.let { Instant.fromEpochMilliseconds(it).toLocalDateTime(TimeZone.UTC).date }
@@ -1208,6 +1327,32 @@ internal fun AnimeTrackerSheet(
                                             )
                                         }
                                     }
+                                    // EaZy Nuvio+ Start — Simkl Save Progress
+                                    if (currentSimklId != null && simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
+                                        AnimeTrackerMappingStorage.saveSimklOverride(contentId, currentSimklId)
+                                         val token = com.nuvio.app.features.simkl.SimklAuthRepository.authorizedAccessToken()
+                                        if (!token.isNullOrBlank()) {
+                                            val simklStatusString = when (simklStatus) {
+                                                "Watching" -> "watching"
+                                                "Plan to Watch" -> "plantowatch"
+                                                "Completed" -> "completed"
+                                                "On Hold" -> "hold"
+                                                "Dropped" -> "dropped"
+                                                else -> "watching"
+                                            }
+                                            com.nuvio.app.features.simkl.SimklSearchClient.saveSimklProgress(
+                                                accessToken = token,
+                                                simklId = currentSimklId,
+                                                status = simklStatusString,
+                                                score = if (simklScore > 0f) simklScore.roundToInt() else null,
+                                                progress = simklProgress.roundToInt()
+                                            )
+                                            com.nuvio.app.features.simkl.SimklSyncRepository.refreshAsync(
+                                                com.nuvio.app.features.tracking.TrackingRefreshIntent.USER_INITIATED
+                                            )
+                                        }
+                                    }
+                                    // EaZy Nuvio+ End
                                 }
                             },
                             modifier = Modifier.fillMaxWidth().height(52.dp),

@@ -1,6 +1,6 @@
 package com.nuvio.app.features.simkl
 
-// EaZy Nuvio+ Start — Simkl ID lookup & search client for tracker sheet
+// EaZy Nuvio+ Start — Simkl ID lookup, search, and save client for tracker sheet
 import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.anilist.SearchResult
 import io.ktor.http.encodeURLParameter
@@ -127,6 +127,68 @@ internal object SimklSearchClient {
             } catch (_: Exception) {}
         }
         return results.distinctBy { it.id }
+    }
+
+    suspend fun saveSimklProgress(
+        accessToken: String,
+        simklId: String,
+        status: String?,
+        score: Int?,
+        progress: Int?,
+    ): Boolean {
+        val clientId = SimklConfig.CLIENT_ID.ifBlank { "6eaf02a9b63b01eb1750cdecf0f05e7d0d8dd949d1eb6894716857947bb68c1a" }
+        val headers = mapOf(
+            "Authorization" to "Bearer $accessToken",
+            "simkl-api-key" to clientId,
+            "Content-Type" to "application/json",
+            "Accept" to "application/json",
+        )
+        val idInt = simklId.toIntOrNull() ?: return false
+        var success = true
+
+        if (!status.isNullOrBlank()) {
+            val listBody = """
+                {
+                  "shows": [{"ids": {"simkl": $idInt}, "to": "$status"}],
+                  "movies": [{"ids": {"simkl": $idInt}, "to": "$status"}],
+                  "anime": [{"ids": {"simkl": $idInt}, "to": "$status"}]
+                }
+            """.trimIndent()
+            runCatching {
+                val res = httpRequestRaw("POST", "https://api.simkl.com/sync/add-to-list", headers, listBody)
+                success = success && (res.status in 200..299)
+            }
+        }
+
+        if (score != null && score > 0) {
+            val ratingBody = """
+                {
+                  "shows": [{"ids": {"simkl": $idInt}, "rating": $score}],
+                  "movies": [{"ids": {"simkl": $idInt}, "rating": $score}],
+                  "anime": [{"ids": {"simkl": $idInt}, "rating": $score}]
+                }
+            """.trimIndent()
+            runCatching {
+                val res = httpRequestRaw("POST", "https://api.simkl.com/sync/ratings", headers, ratingBody)
+                success = success && (res.status in 200..299)
+            }
+        }
+
+        if (progress != null && progress > 0) {
+            val epList = (1..progress).joinToString(",") { """{"number": $it}""" }
+            val historyBody = """
+                {
+                  "shows": [{"ids": {"simkl": $idInt}, "episodes": [$epList]}],
+                  "anime": [{"ids": {"simkl": $idInt}, "episodes": [$epList]}]
+                }
+            """.trimIndent()
+            runCatching {
+                val res = httpRequestRaw("POST", "https://api.simkl.com/sync/history", headers, historyBody)
+                success = success && (res.status in 200..299)
+            }
+        }
+
+        return success
     }
 }
 // EaZy Nuvio+ End

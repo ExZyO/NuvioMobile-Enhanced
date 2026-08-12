@@ -42,6 +42,8 @@ internal data class NuvioEnhancedSettingsUiState(
     val statusBarVisible: Boolean = true,
     val playerStatusOverlayEnabled: Boolean = false,
     val subtitleSelectorStyle: NuvioSubtitleSelectorStyle = NuvioSubtitleSelectorStyle.Enhanced,
+    val audioSelectorStyle: NuvioAudioSelectorStyle = NuvioAudioSelectorStyle.Enhanced,
+    val nextEpisodeButtonEnabled: Boolean = false,
     val showContinueWatchingReadyBadge: Boolean = true,
     val selectedAppIconId: String = "default",
     val releaseRadarLibraryOnly: Boolean = true,
@@ -97,6 +99,11 @@ internal enum class NuvioSubtitleSelectorStyle {
     Nuvio,
 }
 
+internal enum class NuvioAudioSelectorStyle {
+    Enhanced,
+    Nuvio,
+}
+
 internal enum class NuvioEnhancedFeature(val id: String) {
     HomeExperienceControls("home_experience_controls"),
     SmartResume2("smart_resume_2"),
@@ -110,6 +117,8 @@ internal enum class NuvioEnhancedFeature(val id: String) {
     PlayerStatusOverlay("player_status_overlay"),
     SubtitleSyncMenu("subtitle_sync_menu_v3"),
     SubtitleSelectorStyle("subtitle_selector_style_v1"),
+    AudioSelectorStyle("audio_selector_style_v1"),
+    NextEpisodeButton("next_episode_button_v1"),
     PlayerTimeOverlay("player_time_overlay_v3"),
     PersistentEpisodeShuffle("persistent_episode_shuffle_v3"),
     StatusBarVisibility("status_bar_visibility"),
@@ -159,6 +168,8 @@ private data class StoredNuvioEnhancedSettings(
     val statusBarVisible: Boolean = true,
     val playerStatusOverlayEnabled: Boolean = false,
     val subtitleSelectorStyle: NuvioSubtitleSelectorStyle = NuvioSubtitleSelectorStyle.Enhanced,
+    val audioSelectorStyle: NuvioAudioSelectorStyle = NuvioAudioSelectorStyle.Enhanced,
+    val nextEpisodeButtonEnabled: Boolean = false,
     val showContinueWatchingReadyBadge: Boolean = true,
     // EaZy Nuvio+ Start
     val appIconSelectionRemoved: Boolean = false,
@@ -340,6 +351,14 @@ internal object NuvioEnhancedSettingsRepository {
         copy(subtitleSelectorStyle = style)
     }
 
+    fun setAudioSelectorStyle(style: NuvioAudioSelectorStyle) = update {
+        copy(audioSelectorStyle = style)
+    }
+
+    fun setNextEpisodeButtonEnabled(enabled: Boolean) = update {
+        copy(nextEpisodeButtonEnabled = enabled)
+    }
+
     fun setStatusBarVisible(visible: Boolean) = update {
         copy(statusBarVisible = visible)
     }
@@ -436,6 +455,8 @@ internal object NuvioEnhancedSettingsRepository {
             statusBarVisible = stored.statusBarVisible,
             playerStatusOverlayEnabled = stored.playerStatusOverlayEnabled,
             subtitleSelectorStyle = stored.subtitleSelectorStyle,
+            audioSelectorStyle = stored.audioSelectorStyle,
+            nextEpisodeButtonEnabled = stored.nextEpisodeButtonEnabled,
             showContinueWatchingReadyBadge = stored.showContinueWatchingReadyBadge,
             selectedAppIconId = stored.selectedAppIconId,
             releaseRadarLibraryOnly = stored.releaseRadarLibraryOnly,

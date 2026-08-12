@@ -165,6 +165,8 @@ private fun NuvioEnhancedSettingsPageContent(
     var importError by remember { mutableStateOf<String?>(null) }
     val hasNewPlayerTools = settings.isNew(NuvioEnhancedFeature.SubtitleSyncMenu) ||
         settings.isNew(NuvioEnhancedFeature.SubtitleSelectorStyle) ||
+        settings.isNew(NuvioEnhancedFeature.AudioSelectorStyle) ||
+        settings.isNew(NuvioEnhancedFeature.NextEpisodeButton) ||
         settings.isNew(NuvioEnhancedFeature.PlayerTimeOverlay) ||
         settings.isNew(NuvioEnhancedFeature.PersistentEpisodeShuffle)
     var selectedCategory by remember {
@@ -364,6 +366,18 @@ private fun NuvioEnhancedSettingsPageContent(
                         onCheckedChange = {
                             markSeen(NuvioEnhancedFeature.SmartResume2)
                             NuvioEnhancedSettingsRepository.setSmartResumeEnabled(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.settings_continue_watching_ready_badge_title),
+                        description = stringResource(Res.string.settings_continue_watching_ready_badge_description),
+                        checked = settings.showContinueWatchingReadyBadge,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.HomeExperienceControls),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.HomeExperienceControls)
+                            NuvioEnhancedSettingsRepository.setShowContinueWatchingReadyBadge(it)
                         },
                     )
                     SettingsGroupDivider(isTablet = isTablet)
@@ -638,6 +652,40 @@ private fun NuvioEnhancedSettingsPageContent(
                 }
             }
         }
+
+        if (selectedCategory == EnhancedSettingsCategory.All ||
+            selectedCategory == EnhancedSettingsCategory.System
+        ) {
+            SettingsSection(
+                title = stringResource(Res.string.nuvio_enhanced_section_app_experience),
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_status_bar_title),
+                        description = stringResource(Res.string.nuvio_enhanced_status_bar_desc),
+                        checked = settings.statusBarVisible,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.StatusBarVisibility),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.StatusBarVisibility)
+                            NuvioEnhancedSettingsRepository.setStatusBarVisible(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.nuvio_enhanced_live_tv_title),
+                        description = stringResource(Res.string.nuvio_enhanced_live_tv_desc),
+                        checked = settings.liveTvEnabled,
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.LiveTvControls),
+                        onCheckedChange = {
+                            markSeen(NuvioEnhancedFeature.LiveTvControls)
+                            NuvioEnhancedSettingsRepository.setLiveTvEnabled(it)
+                        },
+                    )
+                }
+            }
         }
 
         if (selectedCategory == EnhancedSettingsCategory.New ||
@@ -659,6 +707,18 @@ private fun NuvioEnhancedSettingsPageContent(
                             onCheckedChange = {
                                 markSeen(NuvioEnhancedFeature.ContentWarnings)
                                 PlayerSettingsRepository.setShowParentalGuide(it)
+                            },
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsSwitchRow(
+                            title = stringResource(Res.string.nuvio_enhanced_source_pinning_title),
+                            description = stringResource(Res.string.nuvio_enhanced_source_pinning_desc),
+                            checked = settings.streamSourcePinningEnabled,
+                            isTablet = isTablet,
+                            highlighted = isNew(NuvioEnhancedFeature.StreamSourcePinning),
+                            onCheckedChange = {
+                                markSeen(NuvioEnhancedFeature.StreamSourcePinning)
+                                NuvioEnhancedSettingsRepository.setStreamSourcePinningEnabled(it)
                             },
                         )
                         SettingsGroupDivider(isTablet = isTablet)
@@ -687,6 +747,7 @@ private fun NuvioEnhancedSettingsPageContent(
                         )
                         SettingsGroupDivider(isTablet = isTablet)
                     }
+                    if (selectedCategory != EnhancedSettingsCategory.New || isNew(NuvioEnhancedFeature.SubtitleSyncMenu)) {
                     SettingsSwitchRow(
                         title = stringResource(Res.string.nuvio_enhanced_subtitle_sync_title),
                         description = stringResource(Res.string.nuvio_enhanced_subtitle_sync_desc),
@@ -700,6 +761,8 @@ private fun NuvioEnhancedSettingsPageContent(
                         },
                     )
                     SettingsGroupDivider(isTablet = isTablet)
+                    }
+                    if (selectedCategory != EnhancedSettingsCategory.New || isNew(NuvioEnhancedFeature.SubtitleSelectorStyle)) {
                     EnhancedChoiceRow(
                         title = stringResource(Res.string.nuvio_enhanced_subtitle_selector_title),
                         description = stringResource(Res.string.nuvio_enhanced_subtitle_selector_desc),
@@ -722,6 +785,32 @@ private fun NuvioEnhancedSettingsPageContent(
                         },
                     )
                     SettingsGroupDivider(isTablet = isTablet)
+                    }
+                    if (selectedCategory != EnhancedSettingsCategory.New || isNew(NuvioEnhancedFeature.AudioSelectorStyle)) {
+                    EnhancedChoiceRow(
+                        title = stringResource(Res.string.nuvio_enhanced_audio_selector_title),
+                        description = stringResource(Res.string.nuvio_enhanced_audio_selector_desc),
+                        selected = settings.audioSelectorStyle,
+                        options = listOf(
+                            EnhancedChoiceOption(
+                                NuvioAudioSelectorStyle.Enhanced,
+                                stringResource(Res.string.nuvio_enhanced_subtitle_selector_enhanced),
+                            ),
+                            EnhancedChoiceOption(
+                                NuvioAudioSelectorStyle.Nuvio,
+                                stringResource(Res.string.nuvio_enhanced_subtitle_selector_nuvio),
+                            ),
+                        ),
+                        isTablet = isTablet,
+                        highlighted = isNew(NuvioEnhancedFeature.AudioSelectorStyle),
+                        onSelected = {
+                            markSeen(NuvioEnhancedFeature.AudioSelectorStyle)
+                            NuvioEnhancedSettingsRepository.setAudioSelectorStyle(it)
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    }
+                    if (selectedCategory != EnhancedSettingsCategory.New || isNew(NuvioEnhancedFeature.PlayerTimeOverlay)) {
                     SettingsSwitchRow(
                         title = stringResource(Res.string.nuvio_enhanced_player_clock_title),
                         description = stringResource(Res.string.nuvio_enhanced_player_clock_desc),
@@ -735,6 +824,8 @@ private fun NuvioEnhancedSettingsPageContent(
                         },
                     )
                     SettingsGroupDivider(isTablet = isTablet)
+                    }
+                    if (selectedCategory != EnhancedSettingsCategory.New || isNew(NuvioEnhancedFeature.PersistentEpisodeShuffle)) {
                     SettingsSwitchRow(
                         title = stringResource(Res.string.settings_playback_random_next_episode),
                         description = stringResource(Res.string.settings_playback_random_next_episode_description),
@@ -747,6 +838,24 @@ private fun NuvioEnhancedSettingsPageContent(
                             PlayerSettingsRepository.setRandomNextEpisodeEnabled(it)
                         },
                     )
+                    }
+                    if (selectedCategory != EnhancedSettingsCategory.New || isNew(NuvioEnhancedFeature.NextEpisodeButton)) {
+                        if (selectedCategory != EnhancedSettingsCategory.New || isNew(NuvioEnhancedFeature.PersistentEpisodeShuffle)) {
+                            SettingsGroupDivider(isTablet = isTablet)
+                        }
+                        SettingsSwitchRow(
+                            title = stringResource(Res.string.nuvio_enhanced_next_episode_button_title),
+                            description = stringResource(Res.string.nuvio_enhanced_next_episode_button_desc),
+                            checked = settings.nextEpisodeButtonEnabled,
+                            enabled = settings.enhancedHomeFeaturesEnabled,
+                            isTablet = isTablet,
+                            highlighted = isNew(NuvioEnhancedFeature.NextEpisodeButton),
+                            onCheckedChange = {
+                                markSeen(NuvioEnhancedFeature.NextEpisodeButton)
+                                NuvioEnhancedSettingsRepository.setNextEpisodeButtonEnabled(it)
+                            },
+                        )
+                    }
                     if (selectedCategory != EnhancedSettingsCategory.New && !isIos) {
                         SettingsGroupDivider(isTablet = isTablet)
                         SettingsSwitchRow(
@@ -1009,7 +1118,7 @@ private fun NuvioEnhancedSettingsPageContent(
         }
 
         if (selectedCategory == EnhancedSettingsCategory.All ||
-            selectedCategory == EnhancedSettingsCategory.Player
+            selectedCategory == EnhancedSettingsCategory.Home
         ) {
         SettingsSection(
             title = stringResource(Res.string.nuvio_enhanced_section_details_experience),

@@ -125,6 +125,41 @@ internal fun AnimeTrackerSheet(
     var simklProgress by remember { mutableStateOf(0f) }
     var simklMemo by remember { mutableStateOf("") }
     var isPrivateMemo by remember { mutableStateOf(false) }
+    val syncSimklNow = {
+        val currentId = simklId
+        if (currentId != null && simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
+            scope.launch {
+                val token = com.nuvio.app.features.simkl.SimklAuthRepository.authorizedAccessToken()
+                if (!token.isNullOrBlank()) {
+                    val simklStatusString = when (simklStatus) {
+                        "Watching" -> "watching"
+                        "Plan to Watch" -> "plantowatch"
+                        "Completed" -> "completed"
+                        "On Hold" -> "hold"
+                        "Dropped" -> "dropped"
+                        else -> "watching"
+                    }
+                    com.nuvio.app.features.simkl.SimklSearchClient.saveSimklProgress(
+                        accessToken = token,
+                        simklId = currentId,
+                        status = simklStatusString,
+                        score = if (simklScore > 0f) simklScore.roundToInt() else null,
+                        progress = simklProgress.roundToInt(),
+                        memo = simklMemo,
+                        isPrivate = isPrivateMemo
+                    )
+                    com.nuvio.app.features.simkl.SimklSyncRepository.updateLocalEntry(
+                        simklId = currentId,
+                        status = simklStatus,
+                        score = if (simklScore > 0f) simklScore.roundToInt() else 0,
+                        progress = simklProgress.roundToInt(),
+                        memo = simklMemo,
+                        isPrivate = isPrivateMemo
+                    )
+                }
+            }
+        }
+    }
     // EaZy Nuvio+ End
 
     var aniListStatusExpanded by remember { mutableStateOf(false) }
@@ -1081,6 +1116,7 @@ internal fun AnimeTrackerSheet(
                                                             simklProgress = maxEpisodes.toFloat()
                                                         }
                                                         simklStatusExpanded = false
+                                                        syncSimklNow()
                                                     }
                                                 )
                                             }
@@ -1100,21 +1136,32 @@ internal fun AnimeTrackerSheet(
                                     }
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                         IconButton(
-                                            onClick = { if (simklProgress > 0) simklProgress -= 1f },
+                                            onClick = {
+                                                if (simklProgress > 0) {
+                                                    simklProgress -= 1f
+                                                    syncSimklNow()
+                                                }
+                                            },
                                             modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(OledSheetBg)
                                         ) {
                                             Icon(Icons.Default.Remove, contentDescription = "-1", tint = TextPrimary)
                                         }
-                                        val maxSimklVal = if (maxEpisodes > 0 && maxEpisodes != 2000) maxEpisodes.toFloat() else 500f
+                                        val maxSimklVal = if (maxEpisodes > 0 && maxEpisodes != 2000) maxEpisodes.toFloat() else maxOf(50f, simklProgress + 20f)
                                         Slider(
                                             value = simklProgress.coerceIn(0f, maxSimklVal),
                                             onValueChange = { simklProgress = it.roundToInt().toFloat() },
+                                            onValueChangeFinished = { syncSimklNow() },
                                             valueRange = 0f..maxSimklVal,
                                             modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                                             colors = SliderDefaults.colors(thumbColor = simklBrandColor, activeTrackColor = simklBrandColor)
                                         )
                                         IconButton(
-                                            onClick = { if (simklProgress < maxSimklVal) simklProgress += 1f },
+                                            onClick = {
+                                                if (simklProgress < maxSimklVal) {
+                                                    simklProgress += 1f
+                                                    syncSimklNow()
+                                                }
+                                            },
                                             modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(OledSheetBg)
                                         ) {
                                             Icon(Icons.Default.Add, contentDescription = "+1", tint = TextPrimary)
@@ -1135,6 +1182,7 @@ internal fun AnimeTrackerSheet(
                                     Slider(
                                         value = simklScore.coerceIn(0f, 10f),
                                         onValueChange = { simklScore = it.roundToInt().toFloat() },
+                                        onValueChangeFinished = { syncSimklNow() },
                                         valueRange = 0f..10f,
                                         steps = 9,
                                         colors = SliderDefaults.colors(thumbColor = simklBrandColor, activeTrackColor = simklBrandColor)
@@ -1168,7 +1216,10 @@ internal fun AnimeTrackerSheet(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             FilterChip(
                                                 selected = isPrivateMemo,
-                                                onClick = { isPrivateMemo = !isPrivateMemo },
+                                                onClick = {
+                                                    isPrivateMemo = !isPrivateMemo
+                                                    syncSimklNow()
+                                                },
                                                 label = { Text(if (isPrivateMemo) "Private Memo" else "Public Memo") },
                                                 colors = FilterChipDefaults.filterChipColors(
                                                     selectedContainerColor = simklBrandColor.copy(alpha = 0.2f),

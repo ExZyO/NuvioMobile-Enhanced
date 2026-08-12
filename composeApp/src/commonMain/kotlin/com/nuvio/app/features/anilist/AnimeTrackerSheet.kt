@@ -314,7 +314,7 @@ internal fun AnimeTrackerSheet(
                     simklId = media.ids.simklIdValue()
                     simklTitle = media.title ?: title
                     simklImageUrl = com.nuvio.app.features.simkl.simklPosterUrl(media.poster)
-                    simklStatus = when (localMatch.status) {
+                    simklStatus = when (localMatch.effectiveStatus) {
                         com.nuvio.app.features.simkl.SimklListStatus.WATCHING -> "Watching"
                         com.nuvio.app.features.simkl.SimklListStatus.PLAN_TO_WATCH -> "Plan to Watch"
                         com.nuvio.app.features.simkl.SimklListStatus.COMPLETED -> "Completed"
@@ -323,8 +323,8 @@ internal fun AnimeTrackerSheet(
                         else -> "Watching"
                     }
                     simklScore = (localMatch.userRating ?: 0).toFloat()
-                    simklProgress = localMatch.watchedEpisodesCount.toFloat()
-                    simklMemo = localMatch.memo ?: ""
+                    simklProgress = localMatch.effectiveWatchedEpisodesCount.toFloat()
+                    simklMemo = localMatch.effectiveMemo ?: ""
                     isPrivateMemo = localMatch.memoPrivate
                     if (localMatch.totalEpisodesCount > 0) {
                         maxEpisodes = localMatch.totalEpisodesCount

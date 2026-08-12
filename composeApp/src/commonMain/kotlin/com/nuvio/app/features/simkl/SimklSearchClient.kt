@@ -66,16 +66,30 @@ internal object SimklSearchClient {
             val userRating = firstObj["user_rating"]?.jsonPrimitive?.intOrNull
             val rawStatus = firstObj["status"]?.jsonPrimitive?.contentOrNull
             val watchedEps = firstObj["watched_episodes_count"]?.jsonPrimitive?.intOrNull
+                ?: firstObj["watched_episodes_count"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                ?: firstObj["episodes_watched"]?.jsonPrimitive?.intOrNull
+                ?: firstObj["episodes_watched"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                ?: firstObj["watched"]?.jsonPrimitive?.intOrNull
+                ?: firstObj["watched"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                ?: firstObj["last_watched"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                ?: firstObj["last_watched"]?.jsonPrimitive?.intOrNull
             val memoText = firstObj["memo"]?.jsonPrimitive?.contentOrNull
-            val isMemoPrivate = firstObj["memo_private"]?.jsonPrimitive?.booleanOrNull
-                ?: firstObj["is_memo_private"]?.jsonPrimitive?.booleanOrNull ?: false
+                ?: firstObj["note"]?.jsonPrimitive?.contentOrNull
+                ?: firstObj["comment"]?.jsonPrimitive?.contentOrNull
+            val memoPrivateStr = firstObj["memo_private"]?.jsonPrimitive?.contentOrNull?.lowercase()
+                ?: firstObj["is_private"]?.jsonPrimitive?.contentOrNull?.lowercase()
+                ?: firstObj["private"]?.jsonPrimitive?.contentOrNull?.lowercase()
+            val isMemoPrivate = memoPrivateStr == "yes" || memoPrivateStr == "true" || memoPrivateStr == "1"
+                || firstObj["memo_private"]?.jsonPrimitive?.booleanOrNull == true
+                || firstObj["is_private"]?.jsonPrimitive?.booleanOrNull == true
+                || firstObj["private"]?.jsonPrimitive?.booleanOrNull == true
 
-            val statusVal = when (rawStatus?.lowercase()) {
+            val statusVal = when (rawStatus?.lowercase()?.replace("_", "")?.replace(" ", "")) {
                 "watching" -> "Watching"
                 "completed" -> "Completed"
-                "hold", "on_hold" -> "On Hold"
+                "hold", "onhold" -> "On Hold"
                 "dropped" -> "Dropped"
-                "plantowatch", "plan_to_watch" -> "Plan to Watch"
+                "plantowatch" -> "Plan to Watch"
                 else -> null
             }
 

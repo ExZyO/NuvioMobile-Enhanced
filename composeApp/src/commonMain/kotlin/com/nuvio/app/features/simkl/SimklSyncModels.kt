@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
@@ -64,22 +65,73 @@ data class SimklLibraryEntry(
     @SerialName("last_watched_at") val lastWatchedAt: String? = null,
     @SerialName("user_rated_at") val userRatedAt: String? = null,
     @SerialName("user_rating") val userRating: Int? = null,
-    val status: SimklListStatus? = null,
-    @SerialName("last_watched") val lastWatched: String? = null,
+    @SerialName("status") val status: SimklListStatus? = null,
+    @SerialName("status_raw") private val statusRaw: JsonElement? = null,
+    @SerialName("last_watched") private val lastWatchedRaw: JsonElement? = null,
     @SerialName("next_to_watch") val nextToWatch: String? = null,
     @SerialName("watched_episodes_count") val watchedEpisodesCount: Int = 0,
+    @SerialName("episodes_watched") private val episodesWatchedRaw: JsonElement? = null,
+    @SerialName("watched") private val watchedRaw: JsonElement? = null,
     @SerialName("total_episodes_count") val totalEpisodesCount: Int = 0,
     @SerialName("not_aired_episodes_count") val notAiredEpisodesCount: Int = 0,
     val memo: String? = null,
+    @SerialName("note") private val noteRaw: JsonElement? = null,
+    @SerialName("comment") private val commentRaw: JsonElement? = null,
     @SerialName("memo_private") val memoPrivateRaw: JsonElement? = null,
+    @SerialName("is_private") private val isPrivateRaw: JsonElement? = null,
+    @SerialName("private") private val privateRaw: JsonElement? = null,
     val show: SimklMedia? = null,
     val movie: SimklMedia? = null,
     @SerialName("anime_type") val animeType: String? = null,
     val seasons: List<SimklSeason> = emptyList(),
 ) {
+    val effectiveStatus: SimklListStatus?
+        get() {
+            if (status != null) return status
+            val str = statusRaw?.jsonPrimitive?.contentOrNull?.lowercase()?.replace("_", "")?.replace(" ", "") ?: return null
+            return when (str) {
+                "watching" -> SimklListStatus.WATCHING
+                "plantowatch" -> SimklListStatus.PLAN_TO_WATCH
+                "completed" -> SimklListStatus.COMPLETED
+                "hold", "onhold" -> SimklListStatus.ON_HOLD
+                "dropped" -> SimklListStatus.DROPPED
+                else -> SimklListStatus.WATCHING
+            }
+        }
+
+    val effectiveWatchedEpisodesCount: Int
+        get() {
+            if (watchedEpisodesCount > 0) return watchedEpisodesCount
+
+            val fromEpWatched = episodesWatchedRaw?.jsonPrimitive?.intOrNull
+                ?: episodesWatchedRaw?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+            if (fromEpWatched != null && fromEpWatched > 0) return fromEpWatched
+
+            val fromWatched = watchedRaw?.jsonPrimitive?.intOrNull
+                ?: watchedRaw?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+            if (fromWatched != null && fromWatched > 0) return fromWatched
+
+            val fromLast = lastWatchedRaw?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                ?: lastWatchedRaw?.jsonPrimitive?.intOrNull
+            if (fromLast != null && fromLast > 0) return fromLast
+
+            val fromSeasons = seasons.sumOf { s -> s.episodes.count { it.watchedAt != null } }
+            if (fromSeasons > 0) return fromSeasons
+
+            return 0
+        }
+
+    val effectiveMemo: String?
+        get() = memo?.takeIf(String::isNotBlank)
+            ?: noteRaw?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank)
+            ?: commentRaw?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank)
+
     val memoPrivate: Boolean
         get() {
-            val raw = memoPrivateRaw?.jsonPrimitive?.contentOrNull?.lowercase() ?: return false
+            val raw = memoPrivateRaw?.jsonPrimitive?.contentOrNull?.lowercase()
+                ?: isPrivateRaw?.jsonPrimitive?.contentOrNull?.lowercase()
+                ?: privateRaw?.jsonPrimitive?.contentOrNull?.lowercase()
+                ?: return false
             return raw == "yes" || raw == "true" || raw == "1"
         }
 

@@ -3,6 +3,7 @@ package com.nuvio.app.features.simkl
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
@@ -70,12 +71,18 @@ data class SimklLibraryEntry(
     @SerialName("total_episodes_count") val totalEpisodesCount: Int = 0,
     @SerialName("not_aired_episodes_count") val notAiredEpisodesCount: Int = 0,
     val memo: String? = null,
-    @SerialName("memo_private") val memoPrivate: Boolean = false,
+    @SerialName("memo_private") private val memoPrivateRaw: JsonElement? = null,
     val show: SimklMedia? = null,
     val movie: SimklMedia? = null,
     @SerialName("anime_type") val animeType: String? = null,
     val seasons: List<SimklSeason> = emptyList(),
 ) {
+    val memoPrivate: Boolean
+        get() {
+            val raw = memoPrivateRaw?.jsonPrimitive?.contentOrNull?.lowercase() ?: return false
+            return raw == "yes" || raw == "true" || raw == "1"
+        }
+
     val media: SimklMedia?
         get() = movie ?: show
 

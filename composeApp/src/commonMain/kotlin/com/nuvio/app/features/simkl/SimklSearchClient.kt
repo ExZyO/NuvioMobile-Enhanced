@@ -101,7 +101,7 @@ internal object SimklSearchClient {
 
         val results = mutableListOf<SearchResult>()
 
-        if (cleanQuery.startsWith("tt") || cleanQuery.startsWith("imdb:") || cleanQuery.startsWith("tmdb:") || cleanQuery.all { c -> c.isDigit() }) {
+        if (cleanQuery.startsWith("tt") || cleanQuery.startsWith("imdb:") || cleanQuery.startsWith("tmdb:") || cleanQuery.startsWith("simkl:") || cleanQuery.startsWith("mal:")) {
             val item = lookupByContentId(cleanQuery)
             if (item != null) {
                 results.add(
@@ -117,38 +117,7 @@ internal object SimklSearchClient {
 
         val headers = simklRequestHeaders(contentTypeJson = false)
 
-        // Try /search/id?q=... first for all media types
-        try {
-            val idUrl = buildSimklApiUrl("/search/id", mapOf("q" to cleanQuery, "limit" to "10"))
-            val response = httpRequestRaw("GET", idUrl, headers, "")
-            if (response.status in 200..299 && response.body.isNotBlank()) {
-                val array = json.parseToJsonElement(response.body) as? JsonArray
-                if (array != null) {
-                    for (element in array) {
-                        val obj = element.jsonObject
-                        val idsObj = obj["ids"]?.jsonObject
-                        val simklId = idsObj?.get("simkl")?.jsonPrimitive?.intOrNull
-                            ?: obj["simkl"]?.jsonPrimitive?.intOrNull ?: continue
-                        val title = obj["title"]?.jsonPrimitive?.contentOrNull ?: continue
-                        val poster = obj["poster"]?.jsonPrimitive?.contentOrNull
-                        val year = obj["year"]?.jsonPrimitive?.contentOrNull
-                            ?: obj["year"]?.jsonPrimitive?.intOrNull?.toString()
-                        val typeStr = obj["type"]?.jsonPrimitive?.contentOrNull
-
-                        results.add(
-                            SearchResult(
-                                id = simklId,
-                                title = title,
-                                imageUrl = simklPosterUrl(poster),
-                                type = year ?: typeStr?.uppercase(),
-                            )
-                        )
-                    }
-                }
-            }
-        } catch (_: Exception) {}
-
-        val endpoints = listOf("tv", "anime", "movie")
+        val endpoints = listOf("anime", "tv", "movies")
         for (endpoint in endpoints) {
             val url = buildSimklApiUrl("/search/$endpoint", mapOf("q" to cleanQuery, "limit" to "10"))
             try {
@@ -159,9 +128,12 @@ internal object SimklSearchClient {
                         for (element in array) {
                             val obj = element.jsonObject
                             val idsObj = obj["ids"]?.jsonObject
-                            val simklId = idsObj?.get("simkl")?.jsonPrimitive?.intOrNull
+                            val simklId = idsObj?.get("simkl")?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                                ?: idsObj?.get("simkl")?.jsonPrimitive?.intOrNull
+                                ?: obj["simkl"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
                                 ?: obj["simkl"]?.jsonPrimitive?.intOrNull ?: continue
-                            val title = obj["title"]?.jsonPrimitive?.contentOrNull ?: continue
+                            val title = obj["title"]?.jsonPrimitive?.contentOrNull
+                                ?: obj["name"]?.jsonPrimitive?.contentOrNull ?: continue
                             val poster = obj["poster"]?.jsonPrimitive?.contentOrNull
                             val year = obj["year"]?.jsonPrimitive?.contentOrNull
                                 ?: obj["year"]?.jsonPrimitive?.intOrNull?.toString()
@@ -195,15 +167,18 @@ internal object SimklSearchClient {
         val headers = simklRequestHeaders(accessToken, contentTypeJson = true)
         var success = true
 
-        if (!status.isNullOrBlank() || !memo.isNullOrBlank()) {
+        val memoStr = memo ?: ""
+        val memoEscaped = memoStr.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")
+        val statusStr = status ?: "watching"
+        val isPrivateStr = if (isPrivate) "yes" else "no"
+
+        if (!status.isNullOrBlank() || memo != null) {
             val url = buildSimklApiUrl("/sync/add-to-list")
-            val statusStr = status ?: "watching"
-            val memoEscaped = (memo ?: "").replace("\"", "\\\"").replace("\n", "\\n")
             val listBody = """
                 {
-                  "shows": [{"ids": {"simkl": $idInt}, "to": "$statusStr", "memo": "$memoEscaped", "memo_private": $isPrivate}],
-                  "movies": [{"ids": {"simkl": $idInt}, "to": "$statusStr", "memo": "$memoEscaped", "memo_private": $isPrivate}],
-                  "anime": [{"ids": {"simkl": $idInt}, "to": "$statusStr", "memo": "$memoEscaped", "memo_private": $isPrivate}]
+                  "shows": [{"ids": {"simkl": $idInt}, "to": "$statusStr", "memo": "$memoEscaped", "memo_private": "$isPrivateStr"}],
+                  "movies": [{"ids": {"simkl": $idInt}, "to": "$statusStr", "memo": "$memoEscaped", "memo_private": "$isPrivateStr"}],
+                  "anime": [{"ids": {"simkl": $idInt}, "to": "$statusStr", "memo": "$memoEscaped", "memo_private": "$isPrivateStr"}]
                 }
             """.trimIndent()
             runCatching {
@@ -212,13 +187,14 @@ internal object SimklSearchClient {
             }
         }
 
-        if (score != null && score > 0) {
+        if (score != null) {
             val url = buildSimklApiUrl("/sync/ratings")
+            val ratingVal = if (score > 0) score else 0
             val ratingBody = """
                 {
-                  "shows": [{"ids": {"simkl": $idInt}, "rating": $score}],
-                  "movies": [{"ids": {"simkl": $idInt}, "rating": $score}],
-                  "anime": [{"ids": {"simkl": $idInt}, "rating": $score}]
+                  "shows": [{"ids": {"simkl": $idInt}, "rating": $ratingVal}],
+                  "movies": [{"ids": {"simkl": $idInt}, "rating": $ratingVal}],
+                  "anime": [{"ids": {"simkl": $idInt}, "rating": $ratingVal}]
                 }
             """.trimIndent()
             runCatching {
@@ -233,7 +209,8 @@ internal object SimklSearchClient {
             val historyBody = """
                 {
                   "shows": [{"ids": {"simkl": $idInt}, "episodes": [$epList]}],
-                  "anime": [{"ids": {"simkl": $idInt}, "episodes": [$epList]}]
+                  "anime": [{"ids": {"simkl": $idInt}, "episodes": [$epList]}],
+                  "movies": [{"ids": {"simkl": $idInt}}]
                 }
             """.trimIndent()
             runCatching {

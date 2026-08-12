@@ -303,7 +303,12 @@ internal fun AnimeTrackerSheet(
                 com.nuvio.app.features.simkl.SimklSyncRepository.ensureLoaded()
                 val snapshot = com.nuvio.app.features.simkl.SimklSyncRepository.state.value.snapshot
                 val targetId = savedSimkl ?: contentId
-                val localMatch = snapshot.entries.firstOrNull { it.matchesContentId(targetId) }
+                val localMatch = snapshot.entries.firstOrNull { entry ->
+                    val simklIdStr = entry.media?.ids?.simklIdValue()
+                    (savedSimkl != null && simklIdStr == savedSimkl) ||
+                    entry.matchesContentId(targetId) ||
+                    (contentId.isNotBlank() && entry.matchesContentId(contentId))
+                }
                 if (localMatch != null && localMatch.media != null) {
                     val media = localMatch.media!!
                     simklId = media.ids.simklIdValue()
@@ -327,7 +332,8 @@ internal fun AnimeTrackerSheet(
                         maxEpisodes = 1
                     }
                 } else {
-                    val lookupRes = com.nuvio.app.features.simkl.SimklSearchClient.lookupByContentId(targetId)
+                    val lookupId = if (savedSimkl != null) "simkl:$savedSimkl" else targetId
+                    val lookupRes = com.nuvio.app.features.simkl.SimklSearchClient.lookupByContentId(lookupId)
                     if (lookupRes != null) {
                         simklId = lookupRes.simklId
                         simklTitle = lookupRes.title
@@ -374,20 +380,21 @@ internal fun AnimeTrackerSheet(
         var isSearching by remember { mutableStateOf(false) }
 
         val performSearch: () -> Unit = {
-            if (searchQuery.isNotBlank() && !isSearching) {
+            val q = searchQuery.ifBlank { title }
+            if (q.isNotBlank() && !isSearching) {
                 scope.launch {
                     isSearching = true
                     when (searchMode) {
                         "AniList" -> {
                             val token = AniListAuthRepository.getAccessToken()
-                            if (token != null) searchResults = AniListApiClient.searchAnime(token, searchQuery)
+                            if (token != null) searchResults = AniListApiClient.searchAnime(token, q)
                         }
                         "MAL" -> {
                             val token = MalAuthRepository.getAccessToken()
-                            if (token != null) searchResults = MalApiClient.searchAnime(token, searchQuery)
+                            if (token != null) searchResults = MalApiClient.searchAnime(token, q)
                         }
                         "Simkl" -> {
-                            searchResults = com.nuvio.app.features.simkl.SimklSearchClient.searchItems(searchQuery) // EaZy Nuvio+
+                            searchResults = com.nuvio.app.features.simkl.SimklSearchClient.searchItems(q) // EaZy Nuvio+
                         }
                     }
                     isSearching = false

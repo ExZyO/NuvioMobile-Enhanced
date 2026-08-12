@@ -1443,6 +1443,14 @@ internal fun AnimeTrackerSheet(
                                                 memo = simklMemo,
                                                 isPrivate = isPrivateMemo
                                             )
+                                            com.nuvio.app.features.simkl.SimklSyncRepository.updateLocalEntry(
+                                                simklId = currentSimklId,
+                                                status = simklStatus,
+                                                score = if (simklScore > 0f) simklScore.roundToInt() else 0,
+                                                progress = simklProgress.roundToInt(),
+                                                memo = simklMemo,
+                                                isPrivate = isPrivateMemo
+                                            )
                                             com.nuvio.app.features.simkl.SimklSyncRepository.refreshAsync(
                                                 com.nuvio.app.features.tracking.TrackingRefreshIntent.USER_INITIATED
                                             )

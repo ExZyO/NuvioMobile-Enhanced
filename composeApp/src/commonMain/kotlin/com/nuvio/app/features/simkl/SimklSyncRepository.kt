@@ -20,6 +20,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 object SimklSyncRepository : TrackingProfileStore {
     override val providerId: TrackingProviderId = TrackingProviderId.SIMKL
@@ -234,6 +236,65 @@ object SimklSyncRepository : TrackingProfileStore {
                 _state.value = current.copy(snapshot = snapshot)
                 SimklWatchDiagnostics.logSnapshot(stage = "mutation-commit", snapshot = snapshot)
             }
+        }
+    }
+
+    internal suspend fun updateLocalEntry(
+        simklId: String,
+        status: String,
+        score: Int,
+        progress: Int,
+        memo: String,
+        isPrivate: Boolean,
+    ) {
+        ensureLoaded()
+        snapshotMutex.withLock {
+            val current = _state.value
+            val statusEnum = when (status) {
+                "Watching" -> SimklListStatus.WATCHING
+                "Plan to Watch" -> SimklListStatus.PLAN_TO_WATCH
+                "Completed" -> SimklListStatus.COMPLETED
+                "On Hold" -> SimklListStatus.ON_HOLD
+                "Dropped" -> SimklListStatus.DROPPED
+                else -> SimklListStatus.WATCHING
+            }
+            val idInt = simklId.toIntOrNull()
+            val existingEntry = current.snapshot.entries.firstOrNull { entry ->
+                entry.media?.ids?.simklIdValue() == simklId ||
+                    (idInt != null && entry.media?.ids?.get("simkl")?.jsonPrimitive?.intOrNull == idInt)
+            }
+
+            val updatedEntry = if (existingEntry != null) {
+                existingEntry.copy(
+                    status = statusEnum,
+                    userRating = if (score > 0) score else null,
+                    watchedEpisodesCount = progress,
+                    memo = memo,
+                    memoPrivateRaw = kotlinx.serialization.json.JsonPrimitive(if (isPrivate) "yes" else "no")
+                )
+            } else {
+                SimklLibraryEntry(
+                    mediaType = SimklMediaType.SHOWS,
+                    status = statusEnum,
+                    userRating = if (score > 0) score else null,
+                    watchedEpisodesCount = progress,
+                    memo = memo,
+                    memoPrivateRaw = kotlinx.serialization.json.JsonPrimitive(if (isPrivate) "yes" else "no"),
+                    show = SimklMedia(
+                        title = null,
+                        ids = mapOf("simkl" to kotlinx.serialization.json.JsonPrimitive(idInt ?: 0))
+                    )
+                )
+            }
+
+            val newEntries = current.snapshot.entries.filterNot { entry ->
+                entry.media?.ids?.simklIdValue() == simklId ||
+                    (idInt != null && entry.media?.ids?.get("simkl")?.jsonPrimitive?.intOrNull == idInt)
+            } + updatedEntry
+
+            val updatedSnapshot = current.snapshot.copy(entries = newEntries)
+            SimklSyncStorage.savePayload(json.encodeToString(updatedSnapshot))
+            _state.value = current.copy(snapshot = updatedSnapshot)
         }
     }
 

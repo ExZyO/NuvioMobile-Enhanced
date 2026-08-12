@@ -3,6 +3,7 @@ package com.nuvio.app.features.simkl
 // EaZy Nuvio+ Start — Simkl ID lookup, search, memo, and progress save client
 import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.anilist.SearchResult
+import io.ktor.http.encodeURLParameter
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.booleanOrNull
@@ -119,7 +120,7 @@ internal object SimklSearchClient {
 
         val endpoints = listOf("anime", "tv", "movies")
         for (endpoint in endpoints) {
-            val url = buildSimklApiUrl("/search/$endpoint", mapOf("q" to cleanQuery, "limit" to "10"))
+            val url = "https://api.simkl.com/search/$endpoint?q=${cleanQuery.encodeURLParameter()}&limit=10&client_id=${SimklConfig.CLIENT_ID}"
             try {
                 val response = httpRequestRaw("GET", url, headers, "")
                 if (response.status in 200..299 && response.body.isNotBlank()) {
@@ -184,6 +185,20 @@ internal object SimklSearchClient {
             runCatching {
                 val res = httpRequestRaw("POST", url, headers, listBody)
                 success = success && (res.status in 200..299)
+            }
+
+            if (memo != null) {
+                val notesUrl = buildSimklApiUrl("/users/notes/add")
+                val notesBody = """
+                    {
+                      "simkl": $idInt,
+                      "note": "$memoEscaped",
+                      "private": $isPrivate
+                    }
+                """.trimIndent()
+                runCatching {
+                    httpRequestRaw("POST", notesUrl, headers, notesBody)
+                }
             }
         }
 

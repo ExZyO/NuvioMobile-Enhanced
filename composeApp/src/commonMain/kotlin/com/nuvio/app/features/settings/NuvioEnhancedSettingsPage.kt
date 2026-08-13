@@ -1360,6 +1360,7 @@ private fun NuvioEnhancedSettingsPageContent(
                 }
             }
         }
+        }
     }
 
     backupPayload?.let { payload ->

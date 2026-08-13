@@ -3,15 +3,74 @@
 All notable Nuvio Enhanced changes are recorded here. GitHub release notes use the
 same user-facing summary so the in-app updater can display it before download.
 
+## 0.4.8 - 2026-08-13
+
+### Added
+
+- Added a configurable Android download folder using the system folder picker,
+  so each profile can save completed downloads in any permitted location.
+- Added a persistent Android download service that continues downloads while the
+  app is backgrounded or the screen is locked.
+- Added a monthly Trakt maintenance goal to the Supporters page and disconnected
+  Trakt card, including the next monthly reset date.
+- Added a clear notice that donation totals are shown before payment and bank
+  fees, localized across the supported app languages.
+
+### Improved
+
+- Improved the Library Downloads tab with a high-contrast progress badge,
+  clearer movie and series episode labels, and a full download action overlay.
+- The download action overlay now closes when the background around its content
+  is tapped.
+- Next Up now starts resolving from local completed episodes immediately, without
+  waiting for remote sync to finish.
+- Custom Android subtitle fonts now use their embedded font family name, so they
+  are applied correctly by libmpv.
+- Android tablet navigation now adapts to the current orientation, using the
+  floating top bar in wide landscape windows and bottom navigation in portrait.
+
+### Fixed
+
+- Fixed removal of files saved through Android's Storage Access Framework and
+  automatically remove completed downloads that were deleted outside the app.
+- Fixed completed episodes taking too long to appear as Next Up on Home.
+- Fixed custom subtitle fonts importing successfully but not being applied during
+  Android libmpv playback.
+- Fixed Android tablet navigation remaining in its old position after rotation.
+- Removed the obsolete Nuvio Enhanced feedback card from Settings.
+
+### Release
+
+- This release is based on official NuvioMobile `0.4.4` and is versioned
+  independently as Nuvio Enhanced `0.4.8 (112)`.
+
 ## 0.4.7 - 2026-08-12
 
-### Changed
+### Added
 
-- Added episode artwork to the Library release calendar, falling back to the
-  season or title artwork when an episode thumbnail is unavailable.
-- Added season and episode codes plus episode titles to calendar entries.
-- Removed the redundant Downloads management card from the Saved Library view.
+- Added the release calendar to the Saved Library with exact release dates.
+- Added episode artwork to calendar entries, falling back to season or title
+  artwork when an episode thumbnail is unavailable.
+- Added episode titles and season/episode codes to calendar entries.
+- Added a Downloads tab to the Library with active downloads, completed movies,
+  completed shows, and local playback.
+- Added Enhanced audio selector and Next Episode button settings.
+
+### Improved
+
+- Improved release calendar and release radar loading with concurrent metadata
+  resolution and profile-scoped caching.
+- Improved Library downloads presentation with progress, grouping, and direct
+  playback for completed local files.
+- Improved player subtitle, audio, and next-episode controls.
+
+### Fixed
+
 - Removed the post-login preparation gate so profiles open directly into the app.
+- Removed the redundant “Manage your downloaded movies and episodes” card from
+  the Saved Library view.
+- Fixed calendar entries that previously showed only a date and parent title by
+  preserving episode artwork and episode metadata.
 
 ### Release
 

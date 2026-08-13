@@ -61,6 +61,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
@@ -77,6 +78,7 @@ import com.nuvio.app.core.network.NetworkStatusRepository
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.TrackingListPickerDialog
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
+import com.nuvio.app.core.ui.rememberHeroStretchState
 import com.nuvio.app.features.ai.AiAssistantSettingsRepository
 import com.nuvio.app.features.details.components.AiAssistantSheet
 import com.nuvio.app.features.details.components.DetailActionButtons
@@ -928,6 +930,7 @@ fun MetaDetailsScreen(
                     )
                 }
                 val listState = rememberLazyListState()
+                val heroStretchState = rememberHeroStretchState(listState)
                 val density = LocalDensity.current
                 val safeAreaTopPx = with(density) {
                     WindowInsets.statusBars
@@ -1086,6 +1089,7 @@ fun MetaDetailsScreen(
                             state = listState,
                             modifier = Modifier
                                 .fillMaxSize()
+                                .nestedScroll(heroStretchState.nestedScrollConnection)
                                 .zIndex(1f),
                         ) {
                             item(
@@ -1097,6 +1101,7 @@ fun MetaDetailsScreen(
                                     isTablet = isTablet,
                                     contentMaxWidth = contentMaxWidth,
                                     scrollOffsetProvider = detailScrollOffsetProvider,
+                                    stretchPx = { heroStretchState.stretchPx },
                                     onHeightChanged = { heroHeightPxState.intValue = it },
                                     heroTrailerSourceUrl = heroTrailerSourceUrl,
                                     heroTrailerSourceAudioUrl = heroTrailerSourceAudioUrl,

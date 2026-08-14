@@ -81,9 +81,20 @@ object SimklSyncRepository : TrackingProfileStore {
     suspend fun refresh(intent: TrackingRefreshIntent): Boolean =
         refresh(intent, SimklRefreshOrigin.MANUAL_SYNC)
 
+    /** Full re-fetch of the library + playback, bypassing the activity-watermark
+     *  gate. Used when the tracker sheet opens so website-side memo/note edits
+     *  (which don't advance a tracked activity bucket) are picked up fresh. */
+    suspend fun refreshFull(): Boolean =
+        refresh(
+            TrackingRefreshIntent.USER_INITIATED,
+            SimklRefreshOrigin.MANUAL_SYNC,
+            forceFullRefresh = true,
+        )
+
     internal suspend fun refresh(
         intent: TrackingRefreshIntent,
         origin: SimklRefreshOrigin,
+        forceFullRefresh: Boolean = false,
     ): Boolean {
         ensureLoaded()
         val requestId = refreshRequestSequence.incrementAndGet()
@@ -100,34 +111,39 @@ object SimklSyncRepository : TrackingProfileStore {
             snapshot = before.snapshot,
             errorMessage = before.errorMessage,
         )
-        val outcome = refreshGate.runIfNeeded(
-            profileGeneration = requestedGeneration,
-            shouldRun = {
-                val current = _state.value
-                val authenticated = SimklAuthRepository.isAuthenticated.value
-                val nowEpochMs = SimklPlatformClock.nowEpochMs()
-                val eligible = requestedGeneration == profileGeneration &&
-                    authenticated &&
-                    shouldRunSimklRefresh(
+        val outcome = if (forceFullRefresh) {
+            refreshSnapshot(requestedGeneration, forceFullRefresh = true)
+            SimklRefreshGateOutcome.EXECUTED
+        } else {
+            refreshGate.runIfNeeded(
+                profileGeneration = requestedGeneration,
+                shouldRun = {
+                    val current = _state.value
+                    val authenticated = SimklAuthRepository.isAuthenticated.value
+                    val nowEpochMs = SimklPlatformClock.nowEpochMs()
+                    val eligible = requestedGeneration == profileGeneration &&
+                        authenticated &&
+                        shouldRunSimklRefresh(
+                            intent = intent,
+                            lastCheckedAtEpochMs = current.snapshot.lastCheckedAtEpochMs,
+                            nowEpochMs = nowEpochMs,
+                            hasError = current.errorMessage != null,
+                        )
+                    SimklWatchDiagnostics.logRefreshDecision(
+                        requestId = requestId,
+                        origin = origin,
                         intent = intent,
-                        lastCheckedAtEpochMs = current.snapshot.lastCheckedAtEpochMs,
                         nowEpochMs = nowEpochMs,
+                        lastCheckedAtEpochMs = current.snapshot.lastCheckedAtEpochMs,
+                        authenticated = authenticated,
                         hasError = current.errorMessage != null,
+                        eligible = eligible,
                     )
-                SimklWatchDiagnostics.logRefreshDecision(
-                    requestId = requestId,
-                    origin = origin,
-                    intent = intent,
-                    nowEpochMs = nowEpochMs,
-                    lastCheckedAtEpochMs = current.snapshot.lastCheckedAtEpochMs,
-                    authenticated = authenticated,
-                    hasError = current.errorMessage != null,
-                    eligible = eligible,
-                )
-                eligible
-            },
-        ) {
-            refreshSnapshot(requestedGeneration)
+                    eligible
+                },
+            ) {
+                refreshSnapshot(requestedGeneration)
+            }
         }
         SimklWatchDiagnostics.logRefreshCompletion(
             requestId = requestId,
@@ -145,13 +161,16 @@ object SimklSyncRepository : TrackingProfileStore {
             completed.errorMessage == null
     }
 
-    private suspend fun refreshSnapshot(generation: Long) = snapshotMutex.withLock {
+    private suspend fun refreshSnapshot(
+        generation: Long,
+        forceFullRefresh: Boolean = false,
+    ) = snapshotMutex.withLock {
         val profileId = ProfileRepository.activeProfileId
         val previous = _state.value
         _state.value = previous.copy(isLoading = true, errorMessage = null)
 
         val result = try {
-            engine.synchronize(previous.snapshot)
+            engine.synchronize(previous.snapshot, forceFullRefresh)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
@@ -264,12 +283,19 @@ object SimklSyncRepository : TrackingProfileStore {
                     (idInt != null && entry.media?.ids?.get("simkl")?.jsonPrimitive?.intOrNull == idInt)
             }
 
+            val memoJsonElem = if (memo != null) {
+                kotlinx.serialization.json.buildJsonObject {
+                    put("text", kotlinx.serialization.json.JsonPrimitive(memo))
+                    put("is_private", kotlinx.serialization.json.JsonPrimitive(isPrivate))
+                }
+            } else null
+
             val updatedEntry = if (existingEntry != null) {
                 existingEntry.copy(
                     status = statusEnum,
                     userRating = if (score > 0) score else null,
                     watchedEpisodesCount = progress,
-                    memo = memo,
+                    memoRaw = memoJsonElem,
                     memoPrivateRaw = kotlinx.serialization.json.JsonPrimitive(if (isPrivate) "yes" else "no")
                 )
             } else {
@@ -278,7 +304,7 @@ object SimklSyncRepository : TrackingProfileStore {
                     status = statusEnum,
                     userRating = if (score > 0) score else null,
                     watchedEpisodesCount = progress,
-                    memo = memo,
+                    memoRaw = memoJsonElem,
                     memoPrivateRaw = kotlinx.serialization.json.JsonPrimitive(if (isPrivate) "yes" else "no"),
                     show = SimklMedia(
                         title = null,
@@ -294,7 +320,12 @@ object SimklSyncRepository : TrackingProfileStore {
 
             val updatedSnapshot = current.snapshot.copy(entries = newEntries)
             SimklSyncStorage.savePayload(json.encodeToString(updatedSnapshot))
-            _state.value = current.copy(snapshot = updatedSnapshot)
+            // EaZy Nuvio+ Start
+            _state.value = current.copy(
+                snapshot = updatedSnapshot,
+                projectionVersion = current.projectionVersion + 1L,
+            )
+            // EaZy Nuvio+ End
         }
     }
 

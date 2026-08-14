@@ -70,6 +70,7 @@ internal fun AnimeTrackerSheet(
 
     var isResolvingIds by remember { mutableStateOf(true) }
     var isLoading by remember { mutableStateOf(true) }
+    var hasLoadedOnce by remember { mutableStateOf(false) }
 
     var aniListId by remember { mutableStateOf<Int?>(null) }
     var malId by remember { mutableStateOf<Int?>(null) }
@@ -125,29 +126,39 @@ internal fun AnimeTrackerSheet(
     var simklProgress by remember { mutableStateOf(0f) }
     var simklMemo by remember { mutableStateOf("") }
     var isPrivateMemo by remember { mutableStateOf(false) }
+    var simklIsMovie by remember { mutableStateOf(false) }
+    var simklIsAnime by remember { mutableStateOf(false) }
+    var simklInitialProgress by remember { mutableStateOf<Int?>(null) }
+    var simklIds by remember { mutableStateOf<Map<String, kotlinx.serialization.json.JsonElement>?>(null) }
+    var simklSeasons by remember { mutableStateOf<List<com.nuvio.app.features.simkl.SimklSeason>?>(null) }
+    var simklEpisodeList by remember { mutableStateOf<List<Pair<Int, Int>>?>(null) }
     val syncSimklNow = {
         val currentId = simklId
         if (currentId != null && simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
             scope.launch {
-                val token = com.nuvio.app.features.simkl.SimklAuthRepository.authorizedAccessToken()
-                if (!token.isNullOrBlank()) {
-                    val simklStatusString = when (simklStatus) {
-                        "Watching" -> "watching"
-                        "Plan to Watch" -> "plantowatch"
-                        "Completed" -> "completed"
-                        "On Hold" -> "hold"
-                        "Dropped" -> "dropped"
-                        else -> "watching"
-                    }
-                    com.nuvio.app.features.simkl.SimklSearchClient.saveSimklProgress(
-                        accessToken = token,
-                        simklId = currentId,
-                        status = simklStatusString,
-                        score = if (simklScore > 0f) simklScore.roundToInt() else null,
-                        progress = simklProgress.roundToInt(),
-                        memo = simklMemo,
-                        isPrivate = isPrivateMemo
-                    )
+                val simklStatusString = when (simklStatus) {
+                    "Watching" -> "watching"
+                    "Plan to Watch" -> "plantowatch"
+                    "Completed" -> "completed"
+                    "On Hold" -> "hold"
+                    "Dropped" -> "dropped"
+                    else -> "watching"
+                }
+                val saved = com.nuvio.app.features.simkl.SimklSearchClient.saveSimklProgress(
+                    simklId = currentId,
+                    status = simklStatusString,
+                    score = if (simklScore > 0f) simklScore.roundToInt() else null,
+                    progress = simklProgress.roundToInt(),
+                    memo = simklMemo,
+                    isPrivate = isPrivateMemo,
+                    isMovie = simklIsMovie,
+                    ids = simklIds,
+                    isAnime = simklIsAnime,
+                    oldProgress = simklInitialProgress,
+                    seasons = simklSeasons,
+                    fullEpisodes = simklEpisodeList,
+                )
+                if (saved) {
                     com.nuvio.app.features.simkl.SimklSyncRepository.updateLocalEntry(
                         simklId = currentId,
                         status = simklStatus,
@@ -204,7 +215,7 @@ internal fun AnimeTrackerSheet(
 
     LaunchedEffect(aniListId, malId, simklId, isResolvingIds) {
         if (isResolvingIds) return@LaunchedEffect
-        isLoading = true
+        if (!hasLoadedOnce) isLoading = true
 
         var isUiInitialized = false
 
@@ -336,17 +347,29 @@ internal fun AnimeTrackerSheet(
             }
             if (simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
                 com.nuvio.app.features.simkl.SimklSyncRepository.ensureLoaded()
+                runCatching {
+                    com.nuvio.app.features.simkl.SimklSyncRepository.refreshFull()
+                }
                 val snapshot = com.nuvio.app.features.simkl.SimklSyncRepository.state.value.snapshot
                 val targetId = savedSimkl ?: contentId
                 val localMatch = snapshot.entries.firstOrNull { entry ->
                     val simklIdStr = entry.media?.ids?.simklIdValue()
-                    (savedSimkl != null && simklIdStr == savedSimkl) ||
-                    entry.matchesContentId(targetId) ||
-                    (contentId.isNotBlank() && entry.matchesContentId(contentId))
+                    if (savedSimkl != null) {
+                        // A saved override pins the entry to a specific Simkl ID;
+                        // don't fall back to contentId matching, which would
+                        // re-select the originally linked title.
+                        simklIdStr == savedSimkl
+                    } else {
+                        contentId.isNotBlank() && entry.matchesContentId(contentId)
+                    }
                 }
                 if (localMatch != null && localMatch.media != null) {
                     val media = localMatch.media!!
                     simklId = media.ids.simklIdValue()
+                    simklIds = media.ids
+                    simklSeasons = localMatch.seasons
+                    simklIsAnime = localMatch.mediaType == com.nuvio.app.features.simkl.SimklMediaType.ANIME
+                    simklInitialProgress = localMatch.effectiveWatchedEpisodesCount
                     simklTitle = media.title ?: title
                     simklImageUrl = com.nuvio.app.features.simkl.simklPosterUrl(media.poster)
                     simklStatus = when (localMatch.effectiveStatus) {
@@ -361,14 +384,26 @@ internal fun AnimeTrackerSheet(
                     simklProgress = localMatch.effectiveWatchedEpisodesCount.toFloat()
                     simklMemo = localMatch.effectiveMemo ?: ""
                     isPrivateMemo = localMatch.memoPrivate
+                    simklIsMovie = localMatch.isMovieEntry()
                     if (localMatch.totalEpisodesCount > 0) {
                         maxEpisodes = localMatch.totalEpisodesCount
                     } else if (localMatch.isMovieEntry()) {
                         maxEpisodes = 1
                     }
                 } else {
+                    simklIds = null
+                    simklSeasons = null
+                    simklIsAnime = false
+                    simklInitialProgress = 0
                     val lookupId = if (savedSimkl != null) "simkl:$savedSimkl" else targetId
-                    val lookupRes = com.nuvio.app.features.simkl.SimklSearchClient.lookupByContentId(lookupId)
+                    var lookupRes = com.nuvio.app.features.simkl.SimklSearchClient.lookupByContentId(lookupId)
+                    if (lookupRes == null && title.isNotBlank()) {
+                        val searchMatches = com.nuvio.app.features.simkl.SimklSearchClient.searchItems(title)
+                        val bestMatch = searchMatches.firstOrNull()
+                        if (bestMatch != null && bestMatch.id > 0) {
+                            lookupRes = com.nuvio.app.features.simkl.SimklSearchClient.lookupByContentId("simkl:${bestMatch.id}")
+                        }
+                    }
                     if (lookupRes != null) {
                         simklId = lookupRes.simklId
                         simklTitle = lookupRes.title
@@ -381,14 +416,35 @@ internal fun AnimeTrackerSheet(
                         }
                         if (lookupRes.watchedEpisodes != null) {
                             simklProgress = lookupRes.watchedEpisodes.toFloat()
+                            simklInitialProgress = lookupRes.watchedEpisodes
                         }
                         if (!lookupRes.memo.isNullOrBlank()) {
                             simklMemo = lookupRes.memo
                         }
                         isPrivateMemo = lookupRes.isMemoPrivate
+                        simklIsMovie = lookupRes.isMovie
                         if (lookupRes.totalEpisodes != null && lookupRes.totalEpisodes > 0) {
                             maxEpisodes = lookupRes.totalEpisodes
                         }
+                    }
+                }
+                val resolvedId = simklId
+                val resolvedIsAnime = simklIsAnime
+                val resolvedIsMovie = simklIsMovie
+                if (resolvedId != null && !resolvedIsMovie) {
+                    simklEpisodeList = runCatching {
+                        com.nuvio.app.features.simkl.SimklSearchClient.fetchEpisodeCoordinates(resolvedId, resolvedIsAnime)
+                    }.getOrNull()
+                } else {
+                    simklEpisodeList = null
+                }
+                val episodeList = simklEpisodeList
+                val seasonList = simklSeasons
+                if (episodeList != null && seasonList != null) {
+                    val highest = com.nuvio.app.features.simkl.SimklSearchClient.highestFlatEpisode(episodeList, seasonList)
+                    if (highest > 0) {
+                        simklProgress = highest.toFloat()
+                        simklInitialProgress = highest
                     }
                 }
             }
@@ -398,6 +454,7 @@ internal fun AnimeTrackerSheet(
         withTimeoutOrNull(5000) {
             joinAll(aniJob, malJob, simklJob)
         }
+        hasLoadedOnce = true
         isLoading = false
     }
 
@@ -410,12 +467,13 @@ internal fun AnimeTrackerSheet(
     var searchMode by remember { mutableStateOf("AniList") }
 
     if (showSearchModal) {
-        var searchQuery by remember { mutableStateOf(title) }
-        var searchResults by remember { mutableStateOf<List<SearchResult>>(emptyList()) }
+        val initialCleanTitle = title.replace(Regex("\\[.*?\\]|\\(.*?\\)"), "").trim().ifBlank { title }
+        var searchQuery by remember(showSearchModal, searchMode) { mutableStateOf(initialCleanTitle) }
+        var searchResults by remember(showSearchModal, searchMode) { mutableStateOf<List<SearchResult>>(emptyList()) }
         var isSearching by remember { mutableStateOf(false) }
 
         val performSearch: () -> Unit = {
-            val q = searchQuery.ifBlank { title }
+            val q = searchQuery.ifBlank { initialCleanTitle }
             if (q.isNotBlank() && !isSearching) {
                 scope.launch {
                     isSearching = true
@@ -437,7 +495,7 @@ internal fun AnimeTrackerSheet(
             }
         }
 
-        LaunchedEffect(showSearchModal) {
+        LaunchedEffect(showSearchModal, searchMode) {
             if (showSearchModal) {
                 performSearch()
             }
@@ -519,6 +577,18 @@ internal fun AnimeTrackerSheet(
                                                 simklTitle = result.title
                                                 simklImageUrl = result.imageUrl
                                                 AnimeTrackerMappingStorage.saveSimklOverride(contentId, result.id.toString())
+                                                scope.launch {
+                                                    val details = com.nuvio.app.features.simkl.SimklSearchClient.lookupByContentId("simkl:${result.id}")
+                                                    if (details != null) {
+                                                        if (details.userRating != null && details.userRating > 0) simklScore = details.userRating.toFloat()
+                                                        if (!details.status.isNullOrBlank()) simklStatus = details.status
+                                                        if (details.watchedEpisodes != null) simklProgress = details.watchedEpisodes.toFloat()
+                                                        if (!details.memo.isNullOrBlank()) simklMemo = details.memo
+                                                        isPrivateMemo = details.isMemoPrivate
+                                                        simklIsMovie = details.isMovie
+                                                        if (details.totalEpisodes != null && details.totalEpisodes > 0) maxEpisodes = details.totalEpisodes
+                                                    }
+                                                }
                                             }
                                         }
                                         showSearchModal = false
@@ -827,6 +897,19 @@ internal fun AnimeTrackerSheet(
                                             tint = if (isAniListFavourite) Color(0xFFFF4757) else TextSecondary
                                         )
                                     }
+                                    TextButton(
+                                        onClick = {
+                                            aniListId = null
+                                            aniListTitle = null
+                                            aniListImageUrl = null
+                                            scope.launch {
+                                                AnimeTrackerMappingStorage.removeAniListOverride(contentId)
+                                            }
+                                        },
+                                        colors = ButtonDefaults.textButtonColors(contentColor = TextSecondary)
+                                    ) {
+                                        Text("Untrack")
+                                    }
                                 }
 
                                 Text("Status", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
@@ -963,7 +1046,23 @@ internal fun AnimeTrackerSheet(
                     if (malState.mode == MalConnectionMode.CONNECTED && malId != null) {
                         ProSectionCard {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                Text("MyAnimeList Tracking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MalBrandColor)
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                    Text("MyAnimeList Tracking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MalBrandColor)
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    TextButton(
+                                        onClick = {
+                                            malId = null
+                                            malTitle = null
+                                            malImageUrl = null
+                                            scope.launch {
+                                                AnimeTrackerMappingStorage.removeMalOverride(contentId)
+                                            }
+                                        },
+                                        colors = ButtonDefaults.textButtonColors(contentColor = TextSecondary)
+                                    ) {
+                                        Text("Untrack")
+                                    }
+                                }
 
                                 Text("Status", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
                                 Box {
@@ -1475,25 +1574,29 @@ internal fun AnimeTrackerSheet(
                                     // EaZy Nuvio+ Start — Simkl Save Progress
                                     if (currentSimklId != null && simklState.mode == com.nuvio.app.features.simkl.SimklConnectionMode.CONNECTED) {
                                         AnimeTrackerMappingStorage.saveSimklOverride(contentId, currentSimklId)
-                                         val token = com.nuvio.app.features.simkl.SimklAuthRepository.authorizedAccessToken()
-                                        if (!token.isNullOrBlank()) {
-                                            val simklStatusString = when (simklStatus) {
-                                                "Watching" -> "watching"
-                                                "Plan to Watch" -> "plantowatch"
-                                                "Completed" -> "completed"
-                                                "On Hold" -> "hold"
-                                                "Dropped" -> "dropped"
-                                                else -> "watching"
-                                            }
-                                            com.nuvio.app.features.simkl.SimklSearchClient.saveSimklProgress(
-                                                accessToken = token,
-                                                simklId = currentSimklId,
-                                                status = simklStatusString,
-                                                score = if (simklScore > 0f) simklScore.roundToInt() else null,
-                                                progress = simklProgress.roundToInt(),
-                                                memo = simklMemo,
-                                                isPrivate = isPrivateMemo
-                                            )
+                                        val simklStatusString = when (simklStatus) {
+                                            "Watching" -> "watching"
+                                            "Plan to Watch" -> "plantowatch"
+                                            "Completed" -> "completed"
+                                            "On Hold" -> "hold"
+                                            "Dropped" -> "dropped"
+                                            else -> "watching"
+                                        }
+                                        val simklSaved = com.nuvio.app.features.simkl.SimklSearchClient.saveSimklProgress(
+                                            simklId = currentSimklId,
+                                            status = simklStatusString,
+                                            score = if (simklScore > 0f) simklScore.roundToInt() else null,
+                                            progress = simklProgress.roundToInt(),
+                                            memo = simklMemo,
+                                            isPrivate = isPrivateMemo,
+                                            isMovie = simklIsMovie,
+                                            ids = simklIds,
+                                            isAnime = simklIsAnime,
+                                            oldProgress = simklInitialProgress,
+                                            seasons = simklSeasons,
+                                            fullEpisodes = simklEpisodeList,
+                                        )
+                                        if (simklSaved) {
                                             com.nuvio.app.features.simkl.SimklSyncRepository.updateLocalEntry(
                                                 simklId = currentSimklId,
                                                 status = simklStatus,

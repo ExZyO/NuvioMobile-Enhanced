@@ -3,6 +3,7 @@ package com.nuvio.app.features.simkl
 import com.nuvio.app.features.tracking.TrackingMediaKind
 import com.nuvio.app.features.tracking.TrackingMembershipRemovalImpact
 import com.nuvio.app.features.watchprogress.WatchProgressSourceSimklPlayback
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
@@ -142,7 +143,7 @@ class SimklProjectionsTest {
             imdb = "tt1520211",
             lastWatchedAt = "2023-11-14T23:13:20Z",
         ).copy(
-            lastWatched = "S01E03",
+            lastWatchedRaw = JsonPrimitive("S01E03"),
             nextToWatch = "S01E04",
             watchedEpisodesCount = 3,
             totalEpisodesCount = 6,

@@ -4,10 +4,30 @@ internal class SimklSyncEngine(
     private val remote: SimklSyncRemote,
     private val nowEpochMs: () -> Long,
 ) {
-    suspend fun synchronize(current: SimklSyncSnapshot): SimklSyncSnapshot {
+    suspend fun synchronize(
+        current: SimklSyncSnapshot,
+        forceFullRefresh: Boolean = false,
+    ): SimklSyncSnapshot {
         if (!current.isInitialized) return initialSync()
 
         val activities = remote.fetchActivities()
+
+        // The tracker sheet opens request a full re-fetch because memo/note
+        // edits made on the website don't advance a tracked activity bucket,
+        // so the watermark gate below would otherwise skip re-fetching them.
+        if (forceFullRefresh && current.watermark != null) {
+            val full = remote.fetchAllItems(SimklAllItemsRequest.FullRefresh)
+            val now = nowEpochMs()
+            return current.copy(
+                watermark = activities.all,
+                activities = activities,
+                entries = mergeDelta(current.entries, full),
+                playback = current.playback,
+                lastSyncedAtEpochMs = now,
+                lastCheckedAtEpochMs = now,
+            ).reconcileWatchedPlayback()
+        }
+
         if (activities.all == current.watermark) {
             return current.copy(
                 activities = activities,
@@ -16,18 +36,35 @@ internal class SimklSyncEngine(
         }
         if (current.watermark == null) return initialSync()
 
+        val allItemsChanged = hasAllItemsActivityChanged(current.activities, activities)
+        val removalChanged = hasRemovalActivityChanged(current.activities, activities)
+        val playbackChanged = hasPlaybackActivityChanged(current.activities, activities)
+        val settingsChanged = hasSettingsActivityChanged(current.activities, activities)
+
         var entries = current.entries
-        if (hasAllItemsActivityChanged(current.activities, activities)) {
+        if (allItemsChanged) {
             val delta = remote.fetchAllItems(SimklAllItemsRequest.Changes(current.watermark))
             entries = mergeDelta(entries, delta)
         }
 
-        if (hasRemovalActivityChanged(current.activities, activities)) {
+        if (removalChanged) {
             val authoritativeIds = remote.fetchAllItems(SimklAllItemsRequest.CurrentIds)
             entries = reconcileRemovedEntries(entries, authoritativeIds)
         }
 
-        val playback = if (hasPlaybackActivityChanged(current.activities, activities)) {
+        // Simkl exposes no memo/note activity bucket, so editing a memo on the
+        // website only moves the global watermark without touching any tracked
+        // bucket. The `date_from` delta does not reliably surface memo-only
+        // edits, so do a full all-items fetch here to pick up the edited entry
+        // (memo, watched progress, etc.) instead of skipping past the watermark.
+        val unclassifiedChange =
+            !allItemsChanged && !removalChanged && !playbackChanged && !settingsChanged
+        if (unclassifiedChange) {
+            val full = remote.fetchAllItems(SimklAllItemsRequest.FullRefresh)
+            entries = mergeDelta(entries, full)
+        }
+
+        val playback = if (playbackChanged) {
             remote.fetchPlayback()
         } else {
             current.playback
@@ -129,6 +166,12 @@ private fun hasPlaybackActivityChanged(
         SimklMediaType.entries.any { type ->
             previous.domain(type).playback != current.domain(type).playback
         }
+
+private fun hasSettingsActivityChanged(
+    previous: SimklActivities?,
+    current: SimklActivities,
+): Boolean =
+    previous == null || current.settings.all != previous.settings.all
 
 private val simklEntryComparator = compareBy<SimklLibraryEntry>(
     { entry -> entry.mediaType.ordinal },

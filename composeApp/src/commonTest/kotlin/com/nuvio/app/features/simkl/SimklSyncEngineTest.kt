@@ -125,6 +125,35 @@ class SimklSyncEngineTest {
     }
 
     @Test
+    fun `unclassified watermark change performs full fetch for memo edits`() = runBlocking {
+        val current = SimklSyncSnapshot(
+            isInitialized = true,
+            watermark = "v1",
+            activities = activities(all = "v1", library = "l1", settings = "s1"),
+            entries = listOf(entry(SimklMediaType.SHOWS, "1")),
+        )
+        val memoizedEntry = entry(SimklMediaType.SHOWS, "1").copy(
+            memoRaw = buildJsonObject {
+                put("text", "Updated on website")
+                put("is_private", false)
+            },
+        )
+        val remote = ScriptedRemote(
+            Step.Activities(activities(all = "v2", library = "l1", settings = "s1")),
+            Step.AllItems(null, responseOf(memoizedEntry)),
+        )
+
+        val result = SimklSyncEngine(remote) { 900L }.synchronize(current)
+
+        assertEquals("Updated on website", result.entries.single().effectiveMemo)
+        assertEquals(
+            listOf<SimklAllItemsRequest>(SimklAllItemsRequest.FullRefresh),
+            remote.allItemsRequests,
+        )
+        assertTrue(remote.isExhausted)
+    }
+
+    @Test
     fun `removal only activity reconciles ids without delta`() = runBlocking {
         val retained = entry(SimklMediaType.SHOWS, "1")
         val current = SimklSyncSnapshot(
@@ -387,6 +416,7 @@ class SimklSyncEngineTest {
         remote.fetchAllItems(SimklAllItemsRequest.Bootstrap(SimklMediaType.SHOWS))
         remote.fetchAllItems(SimklAllItemsRequest.Changes("2026-05-08T14:23:11Z"))
         remote.fetchAllItems(SimklAllItemsRequest.CurrentIds)
+        remote.fetchAllItems(SimklAllItemsRequest.FullRefresh)
 
         assertFalse("date_from=" in urls[0])
         assertTrue("extended=full" in urls[0])
@@ -399,6 +429,10 @@ class SimklSyncEngineTest {
         assertTrue("episode_tvdb_id=yes" in urls[1])
         assertTrue("include_all_episodes=yes" in urls[1])
         assertTrue("extended=simkl_ids_only" in urls[2])
+        assertFalse("date_from=" in urls[3])
+        assertTrue("extended=full_anime_seasons" in urls[3])
+        assertTrue("memos=yes" in urls[3])
+        assertTrue("include_all_episodes=yes" in urls[3])
     }
 
     @Test

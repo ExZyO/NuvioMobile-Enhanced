@@ -101,7 +101,19 @@ object WatchingActions {
                 parentMetaId = meta.id,
             )
         } else {
-            WatchedRepository.markWatched(watchedItem)
+            // Fill the gap: mark every episode up to and including this one in
+            // watch order, so "watched episode N" behaves as "watched up to N".
+            // Simkl is idempotent about re-marking already-watched episodes.
+            val ordered = meta.videos
+                .filter { it.season != null && it.episode != null }
+                .sortedWith(compareBy({ it.season }, { it.episode }))
+            val markedIndex = ordered.indexOfFirst { it.season == episode.season && it.episode == episode.episode }
+            val items = if (markedIndex >= 0) {
+                ordered.subList(0, markedIndex + 1).map(meta::toEpisodeWatchedItem)
+            } else {
+                listOf(watchedItem)
+            }
+            WatchedRepository.markWatched(items)
             WatchProgressRepository.clearProgress(
                 videoId = meta.episodePlaybackId(episode),
                 parentMetaId = meta.id,

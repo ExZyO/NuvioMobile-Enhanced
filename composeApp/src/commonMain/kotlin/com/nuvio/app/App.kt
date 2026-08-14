@@ -3511,6 +3511,9 @@ private fun MainAppContent(
                         onPosterClick = { meta ->
                             navController.navigate(DetailRoute(type = meta.type, id = meta.id, title = meta.name))
                         },
+                        onPosterLongClick = { meta ->
+                            openPosterActions(PosterActionTarget(preview = meta))
+                        },
                     )
                 }
                     }.let { provider ->
@@ -3717,6 +3720,23 @@ private fun MainAppContent(
                                         ),
                                     )
                                 }
+                                add(
+                                    PosterZoomOverlayAction(
+                                        icon = Icons.Default.Edit,
+                                        label = "Tracking",
+                                        onSelected = {
+                                            showPosterTrackerSheet = PosterActionTarget(
+                                                preview = MetaPreview(
+                                                    id = item.parentMetaId,
+                                                    type = item.parentMetaType,
+                                                    name = item.title,
+                                                ),
+                                            )
+                                            selectedContinueWatchingForActions = null
+                                            selectedContinueWatchingZoomAnchor = null
+                                        },
+                                    ),
+                                )
                                 add(
                                     PosterZoomOverlayAction(
                                         icon = Icons.Default.DeleteOutline,

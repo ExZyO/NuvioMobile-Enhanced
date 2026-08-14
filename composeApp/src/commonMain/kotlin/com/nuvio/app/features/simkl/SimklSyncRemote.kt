@@ -19,6 +19,12 @@ internal sealed interface SimklAllItemsRequest {
         override val type: SimklMediaType? = null
     }
 
+    /** Full all-types fetch without a [Changes.dateFrom] watermark, used to catch
+     *  memo-only edits that Simkl does not surface through the `date_from` delta. */
+    data object FullRefresh : SimklAllItemsRequest {
+        override val type: SimklMediaType? = null
+    }
+
     data object CurrentIds : SimklAllItemsRequest {
         override val type: SimklMediaType? = null
     }
@@ -55,6 +61,7 @@ internal class SimklApiSyncRemote(
                 "episode_watched_at" to "yes",
                 "episode_tvdb_id" to "yes",
                 "include_all_episodes" to "yes",
+                "memos" to "yes",
                 "language" to "en",
             )
             is SimklAllItemsRequest.Changes -> mapOf(
@@ -63,6 +70,15 @@ internal class SimklApiSyncRemote(
                 "episode_watched_at" to "yes",
                 "episode_tvdb_id" to "yes",
                 "include_all_episodes" to "yes",
+                "memos" to "yes",
+                "language" to "en",
+            )
+            SimklAllItemsRequest.FullRefresh -> mapOf(
+                "extended" to "full_anime_seasons",
+                "episode_watched_at" to "yes",
+                "episode_tvdb_id" to "yes",
+                "include_all_episodes" to "yes",
+                "memos" to "yes",
                 "language" to "en",
             )
             SimklAllItemsRequest.CurrentIds -> mapOf(

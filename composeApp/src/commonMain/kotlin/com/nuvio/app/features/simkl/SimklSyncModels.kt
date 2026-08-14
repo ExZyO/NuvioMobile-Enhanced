@@ -74,7 +74,7 @@ data class SimklLibraryEntry(
     @SerialName("watched") private val watchedRaw: JsonElement? = null,
     @SerialName("total_episodes_count") val totalEpisodesCount: Int = 0,
     @SerialName("not_aired_episodes_count") val notAiredEpisodesCount: Int = 0,
-    val memo: String? = null,
+    @SerialName("memo") val memoRaw: JsonElement? = null,
     @SerialName("note") private val noteRaw: JsonElement? = null,
     @SerialName("comment") private val commentRaw: JsonElement? = null,
     @SerialName("memo_private") val memoPrivateRaw: JsonElement? = null,
@@ -111,23 +111,45 @@ data class SimklLibraryEntry(
                 ?: watchedRaw?.jsonPrimitive?.contentOrNull?.toIntOrNull()
             if (fromWatched != null && fromWatched > 0) return fromWatched
 
-            val fromLast = lastWatchedRaw?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+            val fromLast = lastWatchedRaw?.jsonPrimitive?.contentOrNull
+                ?.removePrefix("E")?.removePrefix("e")?.removePrefix("S01E")?.removePrefix("s01e")
+                ?.toIntOrNull()
                 ?: lastWatchedRaw?.jsonPrimitive?.intOrNull
             if (fromLast != null && fromLast > 0) return fromLast
 
             val fromSeasons = seasons.sumOf { s -> s.episodes.count { it.watchedAt != null } }
             if (fromSeasons > 0) return fromSeasons
 
+            val fromMaxEp = seasons.flatMap { it.episodes }.filter { it.watchedAt != null }.maxOfOrNull { it.number ?: 0 }
+            if (fromMaxEp != null && fromMaxEp > 0) return fromMaxEp
+
             return 0
         }
 
     val effectiveMemo: String?
-        get() = memo?.takeIf(String::isNotBlank)
-            ?: noteRaw?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank)
-            ?: commentRaw?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank)
+        get() {
+            val fromMemo = when (val elem = memoRaw) {
+                is kotlinx.serialization.json.JsonObject -> elem["text"]?.jsonPrimitive?.contentOrNull
+                is kotlinx.serialization.json.JsonPrimitive -> elem.contentOrNull
+                else -> null
+            }
+            if (!fromMemo.isNullOrBlank()) return fromMemo
+            val fromNote = noteRaw?.jsonPrimitive?.contentOrNull
+            if (!fromNote.isNullOrBlank()) return fromNote
+            val fromComment = commentRaw?.jsonPrimitive?.contentOrNull
+            if (!fromComment.isNullOrBlank()) return fromComment
+            return null
+        }
 
     val memoPrivate: Boolean
         get() {
+            if (memoRaw is kotlinx.serialization.json.JsonObject) {
+                val p = memoRaw["is_private"]?.jsonPrimitive
+                if (p != null) {
+                    val bool = p.contentOrNull?.lowercase()
+                    return bool == "true" || bool == "yes" || bool == "1"
+                }
+            }
             val raw = memoPrivateRaw?.jsonPrimitive?.contentOrNull?.lowercase()
                 ?: isPrivateRaw?.jsonPrimitive?.contentOrNull?.lowercase()
                 ?: privateRaw?.jsonPrimitive?.contentOrNull?.lowercase()

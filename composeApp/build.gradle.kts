@@ -146,15 +146,18 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
 
         outDir.resolve("com/nuvio/app/features/simkl").apply {
             mkdirs()
+            val resolvedSimklClientId = simklClientId.get().ifBlank { props.getProperty("SIMKL_CLIENT_ID", "6eaf02a9b63b01eb1750cdecf0f05e7d0d8dd949d1eb6894716857947bb68c1a") }
+            val resolvedSimklRedirectUri = simklRedirectUri.get().ifBlank { props.getProperty("SIMKL_REDIRECT_URI", "nuvioenhanced://auth/simkl") }
+            val resolvedSimklAppName = simklAppName.get().ifBlank { props.getProperty("SIMKL_APP_NAME", "Nuvio") }
             resolve("SimklConfig.kt").writeText(
                 """
                 |package com.nuvio.app.features.simkl
                 |
                 |object SimklConfig {
                 |    // EaZy Nuvio+ Start
-                |    const val CLIENT_ID = "${simklClientId.get()}"
-                |    const val REDIRECT_URI = "${simklRedirectUri.get()}"
-                |    const val APP_NAME = "${props.getProperty("SIMKL_APP_NAME", "Nuvio")}"
+                |    const val CLIENT_ID = "$resolvedSimklClientId"
+                |    const val REDIRECT_URI = "$resolvedSimklRedirectUri"
+                |    const val APP_NAME = "$resolvedSimklAppName"
                 |    // EaZy Nuvio+ End
                 |}
                 """.trimMargin()
@@ -190,21 +193,6 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
             )
         }
         // EaZy Nuvio+ End
-
-        outDir.resolve("com/nuvio/app/features/simkl").apply {
-            mkdirs()
-            resolve("SimklConfig.kt").writeText(
-                """
-                |package com.nuvio.app.features.simkl
-                |
-                |object SimklConfig {
-                |    val CLIENT_ID = "${props.getProperty("SIMKL_CLIENT_ID", "")}" 
-                |    val REDIRECT_URI = "${props.getProperty("SIMKL_REDIRECT_URI", "nuvio://simkl/callback")}"
-                |    val APP_NAME = "${props.getProperty("SIMKL_APP_NAME", "Nuvio")}"
-                |}
-                """.trimMargin()
-            )
-        }
 
         outDir.resolve("com/nuvio/app/features/updater").apply {
             mkdirs()

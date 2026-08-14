@@ -1288,13 +1288,23 @@ private fun MainAppContent(
                         }
                     }
 
-                    // EaZy Nuvio+ Start — Simkl & MAL direct scrobble
+                    // EaZy Nuvio+ Start — Simkl, AniList & MAL direct scrobble
                     if (progressPercent >= 80f) {
                         val parentId = playerLaunch.parentMetaId
                         val seasonNum = playerLaunch.seasonNumber
                         val epNum = playerLaunch.episodeNumber
                         val mediaType = playerLaunch.parentMetaType
 
+                        if (com.nuvio.app.features.anilist.AniListAuthRepository.snapshot().mode == com.nuvio.app.features.anilist.AniListConnectionMode.CONNECTED) {
+                            runCatching {
+                                com.nuvio.app.features.anilist.AniListScrobbleRepository.scrobbleStop(
+                                    contentId = parentId,
+                                    videoId = playerLaunch.videoId,
+                                    seasonNumber = seasonNum,
+                                    episodeNumber = epNum,
+                                )
+                            }
+                        }
                         if (com.nuvio.app.features.mal.MalAuthRepository.snapshot().mode == com.nuvio.app.features.mal.MalConnectionMode.CONNECTED) {
                             runCatching {
                                 com.nuvio.app.features.mal.MalScrobbleRepository.scrobbleStop(

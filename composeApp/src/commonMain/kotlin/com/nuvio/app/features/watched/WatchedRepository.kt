@@ -1284,32 +1284,54 @@ object WatchedRepository {
                 }
             }
         }
-        return WatchedPushOutcome(
-            nuvioSyncSucceeded = nuvioSyncSucceeded,
-            succeededTrackerProviderIds = succeededTrackerProviderIds,
-        )
+        // EaZy Nuvio+ Start — Push episode watch marks to connected AniList & MAL services
+        val isAniListConnected = com.nuvio.app.features.anilist.AniListAuthRepository.snapshot().mode == com.nuvio.app.features.anilist.AniListConnectionMode.CONNECTED
+        val isMalConnected = com.nuvio.app.features.mal.MalAuthRepository.snapshot().mode == com.nuvio.app.features.mal.MalConnectionMode.CONNECTED
 
-        // EaZy Nuvio+ Start — Push episode watch marks to connected Simkl & MAL services
-        for (item in items) {
-            val epNum = item.episode
-            if (epNum != null && epNum > 0) {
-                val (imdbId, tmdbId, malId) = parseMediaIds(item.id)
-                val mediaType = item.type.ifBlank { "series" }
-                val seasonNum = item.season
+        if (isAniListConnected || isMalConnected) {
+            val maxEpisodeByContentId = mutableMapOf<String, Pair<Int?, Int>>() // contentId -> (season, maxEpisode)
+            for (item in items) {
+                val epNum = item.episode
+                if (epNum != null && epNum > 0) {
+                    val currentMax = maxEpisodeByContentId[item.id]?.second ?: 0
+                    if (epNum > currentMax) {
+                        maxEpisodeByContentId[item.id] = Pair(item.season, epNum)
+                    }
+                }
+            }
 
-                if (com.nuvio.app.features.mal.MalAuthRepository.snapshot().mode == com.nuvio.app.features.mal.MalConnectionMode.CONNECTED) {
+            for ((contentId, seasonAndEp) in maxEpisodeByContentId) {
+                val (seasonNum, epNum) = seasonAndEp
+                if (isAniListConnected) {
                     runCatching {
-                        com.nuvio.app.features.mal.MalScrobbleRepository.scrobbleStop(
-                            contentId = item.id,
+                        com.nuvio.app.features.anilist.AniListScrobbleRepository.scrobbleStop(
+                            contentId = contentId,
                             videoId = null,
                             seasonNumber = seasonNum,
                             episodeNumber = epNum,
+                            force = true,
+                        )
+                    }
+                }
+                if (isMalConnected) {
+                    runCatching {
+                        com.nuvio.app.features.mal.MalScrobbleRepository.scrobbleStop(
+                            contentId = contentId,
+                            videoId = null,
+                            seasonNumber = seasonNum,
+                            episodeNumber = epNum,
+                            force = true,
                         )
                     }
                 }
             }
         }
         // EaZy Nuvio+ End
+
+        return WatchedPushOutcome(
+            nuvioSyncSucceeded = nuvioSyncSucceeded,
+            succeededTrackerProviderIds = succeededTrackerProviderIds,
+        )
     }
 
     private suspend fun deleteFromTargetsForSource(
@@ -1336,6 +1358,45 @@ object WatchedRepository {
                 log.e(error) { "Failed to delete watched items from ${provider.providerId.storageId}" }
             }
         }
+
+        // EaZy Nuvio+ Start — Push remaining highest watched episode to connected AniList & MAL services
+        val isAniListConnected = com.nuvio.app.features.anilist.AniListAuthRepository.snapshot().mode == com.nuvio.app.features.anilist.AniListConnectionMode.CONNECTED
+        val isMalConnected = com.nuvio.app.features.mal.MalAuthRepository.snapshot().mode == com.nuvio.app.features.mal.MalConnectionMode.CONNECTED
+
+        if (isAniListConnected || isMalConnected) {
+            val distinctContentIds = items.map { it.id }.distinct()
+            val remainingItems = itemsForSourceSnapshot(source)
+
+            for (contentId in distinctContentIds) {
+                val remainingEpisodes = remainingItems.filter { it.id == contentId && it.episode != null && it.episode > 0 }
+                val remainingMaxEp = remainingEpisodes.maxOfOrNull { it.episode ?: 0 } ?: 0
+                val sampleItem = remainingEpisodes.firstOrNull()
+
+                if (isAniListConnected) {
+                    runCatching {
+                        com.nuvio.app.features.anilist.AniListScrobbleRepository.scrobbleStop(
+                            contentId = contentId,
+                            videoId = null,
+                            seasonNumber = sampleItem?.season,
+                            episodeNumber = remainingMaxEp,
+                            force = true,
+                        )
+                    }
+                }
+                if (isMalConnected) {
+                    runCatching {
+                        com.nuvio.app.features.mal.MalScrobbleRepository.scrobbleStop(
+                            contentId = contentId,
+                            videoId = null,
+                            seasonNumber = sampleItem?.season,
+                            episodeNumber = remainingMaxEp,
+                            force = true,
+                        )
+                    }
+                }
+            }
+        }
+        // EaZy Nuvio+ End
     }
 
     private fun accountScopeSnapshot(): CoroutineScope =

@@ -220,21 +220,33 @@ internal fun PlayerScreenRuntime.emitStopScrobbleForCurrentProgress() {
         hasSentCompletionScrobbleForCurrentItem = true
         emitTrackingScrobbleStop(progressPercent)
 
-        // EaZy Nuvio+ Start — Simkl & MAL direct scrobble on completion
+        // EaZy Nuvio+ Start — Simkl, AniList & MAL direct scrobble on completion
         val parentId = parentMetaId
         val seasonNum = activeSeasonNumber
         val epNum = activeEpisodeNumber
         val mediaType = parentMetaType ?: "series"
 
-        if (com.nuvio.app.features.mal.MalAuthRepository.snapshot().mode == com.nuvio.app.features.mal.MalConnectionMode.CONNECTED && parentId != null) {
+        if (parentId != null) {
             scope.launch {
-                runCatching {
-                    com.nuvio.app.features.mal.MalScrobbleRepository.scrobbleStop(
-                        contentId = parentId,
-                        videoId = activeVideoId,
-                        seasonNumber = seasonNum,
-                        episodeNumber = epNum,
-                    )
+                if (com.nuvio.app.features.anilist.AniListAuthRepository.snapshot().mode == com.nuvio.app.features.anilist.AniListConnectionMode.CONNECTED) {
+                    runCatching {
+                        com.nuvio.app.features.anilist.AniListScrobbleRepository.scrobbleStop(
+                            contentId = parentId,
+                            videoId = activeVideoId,
+                            seasonNumber = seasonNum,
+                            episodeNumber = epNum,
+                        )
+                    }
+                }
+                if (com.nuvio.app.features.mal.MalAuthRepository.snapshot().mode == com.nuvio.app.features.mal.MalConnectionMode.CONNECTED) {
+                    runCatching {
+                        com.nuvio.app.features.mal.MalScrobbleRepository.scrobbleStop(
+                            contentId = parentId,
+                            videoId = activeVideoId,
+                            seasonNumber = seasonNum,
+                            episodeNumber = epNum,
+                        )
+                    }
                 }
             }
         }

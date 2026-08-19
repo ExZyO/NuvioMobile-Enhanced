@@ -119,7 +119,7 @@ internal fun AnimeTrackerSheet(
     var simklImageUrl by remember { mutableStateOf<String?>(null) }
 
     // EaZy Nuvio+ Start — Simkl Tracking Options State
-    var simklStatus by remember { mutableStateOf("Watching") }
+    var simklStatus by remember { mutableStateOf("Plan to Watch") }
     var simklStatusExpanded by remember { mutableStateOf(false) }
     val simklStatuses = listOf("Watching", "Plan to Watch", "Completed", "On Hold", "Dropped")
     var simklScore by remember { mutableStateOf(0f) }
@@ -142,7 +142,7 @@ internal fun AnimeTrackerSheet(
                     "Completed" -> "completed"
                     "On Hold" -> "hold"
                     "Dropped" -> "dropped"
-                    else -> "watching"
+                    else -> "plantowatch"
                 }
                 val saved = com.nuvio.app.features.simkl.SimklSearchClient.saveSimklProgress(
                     simklId = currentId,
@@ -378,7 +378,7 @@ internal fun AnimeTrackerSheet(
                         com.nuvio.app.features.simkl.SimklListStatus.COMPLETED -> "Completed"
                         com.nuvio.app.features.simkl.SimklListStatus.ON_HOLD -> "On Hold"
                         com.nuvio.app.features.simkl.SimklListStatus.DROPPED -> "Dropped"
-                        else -> "Watching"
+                        else -> "Plan to Watch"
                     }
                     simklScore = (localMatch.userRating ?: 0).toFloat()
                     simklProgress = localMatch.effectiveWatchedEpisodesCount.toFloat()
@@ -411,8 +411,10 @@ internal fun AnimeTrackerSheet(
                         if (lookupRes.userRating != null && lookupRes.userRating > 0) {
                             simklScore = lookupRes.userRating.toFloat()
                         }
-                        if (!lookupRes.status.isNullOrBlank()) {
-                            simklStatus = lookupRes.status
+                        simklStatus = if (!lookupRes.status.isNullOrBlank()) {
+                            lookupRes.status
+                        } else {
+                            "Plan to Watch"
                         }
                         if (lookupRes.watchedEpisodes != null) {
                             simklProgress = lookupRes.watchedEpisodes.toFloat()
@@ -426,6 +428,8 @@ internal fun AnimeTrackerSheet(
                         if (lookupRes.totalEpisodes != null && lookupRes.totalEpisodes > 0) {
                             maxEpisodes = lookupRes.totalEpisodes
                         }
+                    } else {
+                        simklStatus = "Plan to Watch"
                     }
                 }
                 val resolvedId = simklId
@@ -581,12 +585,14 @@ internal fun AnimeTrackerSheet(
                                                     val details = com.nuvio.app.features.simkl.SimklSearchClient.lookupByContentId("simkl:${result.id}")
                                                     if (details != null) {
                                                         if (details.userRating != null && details.userRating > 0) simklScore = details.userRating.toFloat()
-                                                        if (!details.status.isNullOrBlank()) simklStatus = details.status
+                                                        simklStatus = if (!details.status.isNullOrBlank()) details.status else "Plan to Watch"
                                                         if (details.watchedEpisodes != null) simklProgress = details.watchedEpisodes.toFloat()
                                                         if (!details.memo.isNullOrBlank()) simklMemo = details.memo
                                                         isPrivateMemo = details.isMemoPrivate
                                                         simklIsMovie = details.isMovie
                                                         if (details.totalEpisodes != null && details.totalEpisodes > 0) maxEpisodes = details.totalEpisodes
+                                                    } else {
+                                                        simklStatus = "Plan to Watch"
                                                     }
                                                 }
                                             }
@@ -1580,7 +1586,7 @@ internal fun AnimeTrackerSheet(
                                             "Completed" -> "completed"
                                             "On Hold" -> "hold"
                                             "Dropped" -> "dropped"
-                                            else -> "watching"
+                                            else -> "plantowatch"
                                         }
                                         val simklSaved = com.nuvio.app.features.simkl.SimklSearchClient.saveSimklProgress(
                                             simklId = currentSimklId,
